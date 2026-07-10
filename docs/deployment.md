@@ -131,6 +131,12 @@ SUITEMIND_ADDIN_URL: https://addin.example.com
 SUITEMIND_ADDIN_ORIGIN: https://addin.example.com
 ```
 
+If GitHub reports merge conflicts around the Pages workflow or this deployment
+section, keep the version that uses Node.js 24, `actions/configure-pages@v6`, and
+`enablement: true`; the older Node.js 20 / `configure-pages@v5` version can fail
+on current GitHub-hosted runners or on repositories where Pages has not been
+created yet.
+
 ## 3. Optional hosted SuiteMind API deployment
 
 Use this mode only if you decide to operate your own SuiteMind API service.
