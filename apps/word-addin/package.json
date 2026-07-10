@@ -29,7 +29,7 @@
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
-    "jsdom": "^26.1.0",
+    "jsdom": "^29.1.1",
     "office-addin-dev-certs": "^2.0.10",
     "office-addin-debugging": "^6.1.2",
     "office-addin-manifest": "^2.1.6",
