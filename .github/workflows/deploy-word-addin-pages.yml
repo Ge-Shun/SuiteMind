@@ -22,10 +22,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # GitHub Actions runners are moving off Node 20; use Node 24 for npm scripts.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -49,8 +50,11 @@ jobs:
           SUITEMIND_SUPPORT_URL: https://github.com/${{ github.repository }}
         run: npm run generate:production-manifest
 
+      # enablement:true lets the first run create/enable the Pages site automatically.
       - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
+        with:
+          enablement: true
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

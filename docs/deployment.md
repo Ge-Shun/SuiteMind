@@ -95,7 +95,7 @@ the repository is public. GitHub Actions is also free for public repositories;
 private repositories can require a paid plan or consume included Actions minutes.
 
 This repository includes `.github/workflows/deploy-word-addin-pages.yml`, which
-builds the Word add-in, generates `dist/manifest.xml`, and deploys
+uses Node.js 24, builds the Word add-in, generates `dist/manifest.xml`, and deploys
 `apps/word-addin/dist/` to GitHub Pages. The workflow is configured for GitHub
 Project Pages at:
 
@@ -116,7 +116,7 @@ To enable it in GitHub:
 
 1. Push this repository to GitHub.
 2. Open **Settings → Pages**.
-3. Set **Build and deployment → Source** to **GitHub Actions**.
+3. Set **Build and deployment → Source** to **GitHub Actions** when the dropdown is available. The workflow also passes `enablement: true` to `actions/configure-pages` so a first run can create/enable the Pages site automatically.
 4. Run **Actions → Deploy Word Add-in to GitHub Pages → Run workflow**, or push
    to `main`.
 5. Download `manifest.xml` from the deployed site or from the workflow artifact
@@ -130,6 +130,12 @@ VITE_ADDIN_BASE_PATH: /
 SUITEMIND_ADDIN_URL: https://addin.example.com
 SUITEMIND_ADDIN_ORIGIN: https://addin.example.com
 ```
+
+If GitHub reports merge conflicts around the Pages workflow or this deployment
+section, keep the version that uses Node.js 24, `actions/configure-pages@v6`, and
+`enablement: true`; the older Node.js 20 / `configure-pages@v5` version can fail
+on current GitHub-hosted runners or on repositories where Pages has not been
+created yet.
 
 ## 3. Optional hosted SuiteMind API deployment
 
