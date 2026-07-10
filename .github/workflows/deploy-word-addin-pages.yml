@@ -1,0 +1,69 @@
+name: Deploy Word Add-in to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test Word add-in
+        run: npm test --workspace @suitemind/word-addin
+
+      - name: Typecheck Word add-in
+        run: npm run typecheck --workspace @suitemind/word-addin
+
+      - name: Build Word add-in for GitHub Project Pages
+        env:
+          VITE_ADDIN_BASE_PATH: /${{ github.event.repository.name }}/
+        run: npm run build --workspace @suitemind/word-addin
+
+      - name: Generate production manifest
+        env:
+          SUITEMIND_ADDIN_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+          SUITEMIND_ADDIN_ORIGIN: https://${{ github.repository_owner }}.github.io
+          SUITEMIND_SUPPORT_URL: https://github.com/${{ github.repository }}
+        run: npm run generate:production-manifest
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/word-addin/dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,5 +1,13 @@
 import type { TransformOperation } from "@suitemind/contracts";
-import { ArrowDownToLine, RefreshCw, Replace, Send, Square, X } from "lucide-react";
+import {
+  ArrowDownToLine,
+  RefreshCw,
+  Replace,
+  Send,
+  Settings,
+  Square,
+  X,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { ActionPicker } from "./components/ActionPicker";
@@ -25,7 +33,18 @@ import {
   StaleSelectionError,
 } from "./office";
 import { checkApiHealth, transformText } from "./services/api";
+import {
+  getDefaultProviderSettings,
+  isDirectProviderMode,
+  loadProviderSettings,
+  normalizeProviderSettings,
+  providerModes,
+  saveProviderSettings,
+  type ProviderSettings,
+} from "./services/provider-settings";
 import type { AppPhase, ApplyMode, SelectionSnapshot } from "./types";
+
+const icon32Url = `${import.meta.env.BASE_URL}assets/icon-32.png`;
 
 type StatusMessage =
   { type: "key"; key: StatusMessageKey } | { type: "error"; error: unknown };
@@ -78,6 +97,9 @@ export default function App() {
   const [generationComplete, setGenerationComplete] = useState(false);
   const [previewView, setPreviewView] = useState<PreviewView>("diff");
   const [provider, setProvider] = useState("offline");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [providerSettings, setProviderSettings] =
+    useState<ProviderSettings>(loadProviderSettings);
   const abortRef = useRef<AbortController | null>(null);
   const text = translations[language];
   const message = statusMessage
@@ -87,6 +109,9 @@ export default function App() {
     : "";
 
   const busy = phase === "reading" || phase === "generating" || phase === "applying";
+  const activeProviderLabel = isDirectProviderMode(providerSettings.mode)
+    ? providerSettings.model || text.customProvider
+    : provider;
   const canGenerate = Boolean(adapter) && !busy;
 
   function invalidateReview() {
@@ -118,6 +143,13 @@ export default function App() {
   }, [language]);
 
   useEffect(() => {
+    saveProviderSettings(providerSettings);
+    if (isDirectProviderMode(providerSettings.mode)) {
+      setProvider(providerSettings.model || "custom");
+    }
+  }, [providerSettings]);
+
+  useEffect(() => {
     let active = true;
 
     void createOfficeAdapter()
@@ -133,6 +165,22 @@ export default function App() {
         }
       });
 
+    return () => {
+      active = false;
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    if (isDirectProviderMode(providerSettings.mode)) {
+      setProvider(providerSettings.model || "custom");
+      return () => {
+        active = false;
+      };
+    }
+
     void checkApiHealth()
       .then((health) => {
         if (active) {
@@ -147,9 +195,8 @@ export default function App() {
 
     return () => {
       active = false;
-      abortRef.current?.abort();
     };
-  }, []);
+  }, [providerSettings.mode, providerSettings.model]);
 
   async function generate() {
     if (!adapter || busy) {
@@ -210,6 +257,7 @@ export default function App() {
             }
           },
         },
+        { providerSettings: normalizeProviderSettings(providerSettings) },
       );
 
       if (!generated.trim()) {
@@ -239,6 +287,23 @@ export default function App() {
     } finally {
       abortRef.current = null;
     }
+  }
+
+  function updateProviderSettings(partial: Partial<ProviderSettings>) {
+    invalidateReview();
+    setProviderSettings((current) => ({ ...current, ...partial }));
+  }
+
+  function changeProviderMode(mode: ProviderSettings["mode"]) {
+    invalidateReview();
+    setProviderSettings((current) => {
+      const defaults = getDefaultProviderSettings(mode);
+
+      return {
+        ...defaults,
+        apiKey: current.mode === mode ? current.apiKey : "",
+      };
+    });
   }
 
   function cancelGeneration() {
@@ -301,7 +366,7 @@ export default function App() {
     <div className="app-shell" lang={language}>
       <header className="app-header">
         <div className="brand">
-          <img alt="" height="28" src="/assets/icon-32.png" width="28" />
+          <img alt="" height="28" src={icon32Url} width="28" />
           <span>SuiteMind</span>
         </div>
         <div className="header-actions">
@@ -333,20 +398,94 @@ export default function App() {
               中
             </span>
           </button>
+          <button
+            aria-expanded={settingsOpen}
+            aria-label={text.providerSettings}
+            className="settings-button"
+            onClick={() => setSettingsOpen((open) => !open)}
+            title={text.providerSettings}
+            type="button"
+          >
+            <Settings size={15} />
+          </button>
           <div
             className="connection"
-            data-online={provider !== "offline"}
-            title={provider}
+            data-online={
+              isDirectProviderMode(providerSettings.mode) || provider !== "offline"
+            }
+            title={activeProviderLabel}
           >
             <span className="connection-dot" />
             <span className="connection-label">
-              {adapter?.mode === "mock" ? text.demo : provider}
+              {adapter?.mode === "mock" ? text.demo : activeProviderLabel}
             </span>
           </div>
         </div>
       </header>
 
       <main className="main-content">
+        {settingsOpen && (
+          <section className="settings-panel" aria-label={text.providerSettings}>
+            <label className="field-label">
+              <span>{text.providerMode}</span>
+              <select
+                disabled={busy}
+                onChange={(event) =>
+                  changeProviderMode(event.target.value as ProviderSettings["mode"])
+                }
+                value={providerSettings.mode}
+              >
+                {providerModes.map((mode) => (
+                  <option key={mode} value={mode}>
+                    {text.providerModes[mode]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {isDirectProviderMode(providerSettings.mode) && (
+              <>
+                <label className="field-label">
+                  <span>{text.apiBaseUrl}</span>
+                  <input
+                    disabled={busy}
+                    onChange={(event) =>
+                      updateProviderSettings({ baseUrl: event.target.value })
+                    }
+                    placeholder="https://api.openai.com/v1"
+                    type="url"
+                    value={providerSettings.baseUrl}
+                  />
+                </label>
+                <label className="field-label">
+                  <span>{text.apiKey}</span>
+                  <input
+                    autoComplete="off"
+                    disabled={busy}
+                    onChange={(event) =>
+                      updateProviderSettings({ apiKey: event.target.value })
+                    }
+                    placeholder={text.apiKeyPlaceholder}
+                    type="password"
+                    value={providerSettings.apiKey}
+                  />
+                </label>
+                <label className="field-label">
+                  <span>{text.model}</span>
+                  <input
+                    disabled={busy}
+                    onChange={(event) =>
+                      updateProviderSettings({ model: event.target.value })
+                    }
+                    placeholder="gpt-4o-mini"
+                    value={providerSettings.model}
+                  />
+                </label>
+                <p className="settings-note">{text.apiKeyStorageNotice}</p>
+              </>
+            )}
+          </section>
+        )}
         <section className="controls-section" aria-label={text.transformControls}>
           <ActionPicker
             ariaLabel={text.editingAction}
