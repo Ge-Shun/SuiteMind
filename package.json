@@ -1,0 +1,32 @@
+{
+  "name": "suitemind",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI workspace for Microsoft Word",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "concurrently -n api,word -c green,blue \"npm run dev -w @suitemind/api\" \"npm run dev -w @suitemind/word-addin\"",
+    "dev:api": "npm run dev -w @suitemind/api",
+    "dev:word": "npm run dev -w @suitemind/word-addin",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "generate:icons": "node scripts/generate-icons.mjs",
+    "generate:production-manifest": "node scripts/generate-production-manifest.mjs",
+    "sideload:word": "concurrently -k -n api,word -c green,blue \"npm run dev:api\" \"npm run sideload -w @suitemind/word-addin\"",
+    "stop:word": "npm run stop -w @suitemind/word-addin",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "prettier": "^3.9.5",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
