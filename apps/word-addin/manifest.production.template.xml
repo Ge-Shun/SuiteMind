@@ -13,7 +13,7 @@
   <HighResolutionIconUrl DefaultValue="{{ADDIN_BASE_URL}}/assets/icon-80.png" />
   <SupportUrl DefaultValue="{{SUPPORT_URL}}" />
   <AppDomains>
-    <AppDomain>{{ADDIN_BASE_URL}}</AppDomain>
+    <AppDomain>{{ADDIN_ORIGIN}}</AppDomain>
   </AppDomains>
   <Hosts>
     <Host Name="Document" />

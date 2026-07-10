@@ -25,6 +25,7 @@ body,
 }
 
 button,
+input,
 select,
 textarea {
   font: inherit;
@@ -36,6 +37,7 @@ button {
 }
 
 button:disabled,
+input:disabled,
 select:disabled,
 textarea:disabled {
   cursor: not-allowed;
@@ -43,6 +45,7 @@ textarea:disabled {
 }
 
 button:focus-visible,
+input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid #1677ff;
@@ -94,6 +97,24 @@ textarea:focus-visible {
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.settings-button {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d4d8dd;
+  border-radius: 6px;
+  color: #4f5962;
+  background: #ffffff;
+}
+
+.settings-button:hover {
+  border-color: #8aa9ce;
+  background: #f4f8fc;
 }
 
 .language-switch {
@@ -193,7 +214,8 @@ textarea:focus-visible {
 }
 
 .controls-section,
-.review-section {
+.review-section,
+.settings-panel {
   display: grid;
   gap: 12px;
 }
@@ -246,6 +268,7 @@ textarea:focus-visible {
   font-weight: 600;
 }
 
+.field-label input,
 .field-label select,
 .field-label textarea {
   width: 100%;
@@ -257,6 +280,7 @@ textarea:focus-visible {
   font-weight: 400;
 }
 
+.field-label input,
 .field-label select {
   height: 36px;
   padding: 0 9px;
@@ -269,8 +293,23 @@ textarea:focus-visible {
   line-height: 1.4;
 }
 
+.field-label input::placeholder,
 .field-label textarea::placeholder {
   color: #969da4;
+}
+
+.settings-panel {
+  padding: 12px;
+  border: 1px solid #d8dde2;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.settings-note {
+  margin: 0;
+  color: #6f7780;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .primary-button,

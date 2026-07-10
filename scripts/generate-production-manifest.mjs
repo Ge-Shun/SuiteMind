@@ -17,7 +17,16 @@ function requireHttpsUrl(name, value) {
     throw new Error(`${name} must use HTTPS.`);
   }
 
-  return url.toString().replace(/\/$/, "");
+  return url;
+}
+
+function normalizeBaseUrl(name, value) {
+  return requireHttpsUrl(name, value).toString().replace(/\/$/, "");
+}
+
+function normalizeOrigin(name, value) {
+  const url = requireHttpsUrl(name, value);
+  return url.origin;
 }
 
 function escapeXml(value) {
@@ -34,17 +43,22 @@ function escapeXml(value) {
   );
 }
 
-const addinBaseUrl = requireHttpsUrl(
+const addinBaseUrl = normalizeBaseUrl(
   "SUITEMIND_ADDIN_URL",
   process.env.SUITEMIND_ADDIN_URL,
 );
-const supportUrl = requireHttpsUrl(
+const addinOrigin = normalizeOrigin(
+  "SUITEMIND_ADDIN_ORIGIN",
+  process.env.SUITEMIND_ADDIN_ORIGIN ?? addinBaseUrl,
+);
+const supportUrl = normalizeBaseUrl(
   "SUITEMIND_SUPPORT_URL",
   process.env.SUITEMIND_SUPPORT_URL ?? "https://github.com/Ge-Shun/SuiteMind",
 );
 const template = readFileSync(templatePath, "utf8");
 const manifest = template
   .replaceAll("{{ADDIN_BASE_URL}}", escapeXml(addinBaseUrl))
+  .replaceAll("{{ADDIN_ORIGIN}}", escapeXml(addinOrigin))
   .replaceAll("{{SUPPORT_URL}}", escapeXml(supportUrl));
 
 if (/\{\{[A-Z_]+\}\}/.test(manifest)) {
