@@ -19,7 +19,7 @@ export const targetLanguageValues = [
 export type TargetLanguage = (typeof targetLanguageValues)[number];
 
 export type StatusMessageKey =
-  | "customInstructionRequired"
+  | "questionRequired"
   | "readingContext"
   | "generating"
   | "replacing"
@@ -54,10 +54,8 @@ export interface AppStrings {
   transformControls: string;
   editingAction: string;
   targetLanguage: string;
-  instruction: string;
-  additionalInstruction: string;
-  customPlaceholder: string;
-  optionalPlaceholder: string;
+  question: string;
+  questionPlaceholder: string;
   stop: string;
   generateFromWord: string;
   reviewResult: string;
@@ -89,7 +87,7 @@ export const translations: Record<UiLanguage, AppStrings> = {
       translate: "Translate",
       summarize: "Summarize",
       continue: "Continue",
-      custom: "Custom",
+      custom: "Question",
     },
     targetLanguages: {
       "Chinese (Simplified)": "Chinese (Simplified)",
@@ -106,7 +104,7 @@ export const translations: Record<UiLanguage, AppStrings> = {
       after: "After",
     },
     status: {
-      customInstructionRequired: "Enter an instruction for the custom action.",
+      questionRequired: "Enter a question or instruction first.",
       readingContext: "Reading Word context...",
       generating: "Generating...",
       replacing: "Replacing selection...",
@@ -136,12 +134,10 @@ export const translations: Record<UiLanguage, AppStrings> = {
     },
     demo: "Demo",
     transformControls: "Transform controls",
-    editingAction: "Editing action",
+    editingAction: "Assistant actions",
     targetLanguage: "Target language",
-    instruction: "Instruction",
-    additionalInstruction: "Additional instruction",
-    customPlaceholder: "Describe the change",
-    optionalPlaceholder: "Optional tone, audience, or constraints",
+    question: "Question",
+    questionPlaceholder: "Ask SuiteMind what to do with the selected Word text",
     stop: "Stop",
     generateFromWord: "Generate from Word",
     reviewResult: "Review result",
@@ -153,7 +149,7 @@ export const translations: Record<UiLanguage, AppStrings> = {
     generateAgain: "Generate again",
     discardResult: "Discard result",
     switchLanguage: "Switch to Chinese",
-    providerSettings: "Provider settings",
+    providerSettings: "Model settings",
     providerMode: "Provider",
     providerModes: {
       suitemind: "SuiteMind API",
@@ -178,7 +174,7 @@ export const translations: Record<UiLanguage, AppStrings> = {
       translate: "翻译",
       summarize: "总结",
       continue: "续写",
-      custom: "自定义",
+      custom: "提问",
     },
     targetLanguages: {
       "Chinese (Simplified)": "简体中文",
@@ -195,7 +191,7 @@ export const translations: Record<UiLanguage, AppStrings> = {
       after: "结果",
     },
     status: {
-      customInstructionRequired: "请输入自定义操作指令。",
+      questionRequired: "请先输入问题或指令。",
       readingContext: "正在读取 Word 上下文...",
       generating: "正在生成...",
       replacing: "正在替换选区...",
@@ -222,12 +218,10 @@ export const translations: Record<UiLanguage, AppStrings> = {
     },
     demo: "演示",
     transformControls: "文本处理",
-    editingAction: "编辑操作",
+    editingAction: "辅助功能",
     targetLanguage: "目标语言",
-    instruction: "指令",
-    additionalInstruction: "附加要求",
-    customPlaceholder: "描述需要的修改",
-    optionalPlaceholder: "可选：语气、受众或限制",
+    question: "输入问题",
+    questionPlaceholder: "告诉 SuiteMind 需要如何处理 Word 中选中的文本",
     stop: "停止",
     generateFromWord: "从 Word 生成",
     reviewResult: "审阅结果",
@@ -239,7 +233,7 @@ export const translations: Record<UiLanguage, AppStrings> = {
     generateAgain: "重新生成",
     discardResult: "丢弃结果",
     switchLanguage: "切换到英文",
-    providerSettings: "API 设置",
+    providerSettings: "模型配置",
     providerMode: "服务提供方",
     providerModes: {
       suitemind: "SuiteMind API",

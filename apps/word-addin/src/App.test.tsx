@@ -58,22 +58,31 @@ describe("App language switcher", () => {
     expect(screen.getByRole("button", { name: "润色" })).toBeInTheDocument();
   });
 
+  it("does not offer SuiteMind API in model provider settings", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Model settings" }));
+
+    expect(screen.getByRole("combobox", { name: "Provider" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "SuiteMind API" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("updates an active validation message when the language changes", async () => {
     window.localStorage.setItem(UI_LANGUAGE_STORAGE_KEY, "zh-CN");
     render(<App />);
-
-    fireEvent.click(screen.getByRole("button", { name: "自定义" }));
 
     const generateButton = screen.getByRole("button", { name: "从 Word 生成" });
     await waitFor(() => expect(generateButton).toBeEnabled());
     fireEvent.click(generateButton);
 
-    expect(screen.getByRole("status")).toHaveTextContent("请输入自定义操作指令。");
+    expect(screen.getByRole("status")).toHaveTextContent("请先输入问题或指令。");
 
     fireEvent.click(screen.getByRole("switch", { name: "切换到英文" }));
 
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Enter an instruction for the custom action.",
+      "Enter a question or instruction first.",
     );
   });
 });
