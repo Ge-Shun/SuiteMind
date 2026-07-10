@@ -86,7 +86,7 @@ function getErrorMessage(error: unknown, text: AppStrings): string {
 export default function App() {
   const [language, setLanguage] = useState<UiLanguage>(getInitialUiLanguage);
   const [adapter, setAdapter] = useState<OfficeAdapter | null>(null);
-  const [operation, setOperation] = useState<TransformOperation>("polish");
+  const [operation, setOperation] = useState<TransformOperation>("custom");
   const [instruction, setInstruction] = useState("");
   const [targetLanguage, setTargetLanguage] =
     useState<TargetLanguage>("Chinese (Simplified)");
@@ -205,7 +205,7 @@ export default function App() {
 
     if (operation === "custom" && !instruction.trim()) {
       setPhase("error");
-      setStatusMessage({ type: "key", key: "customInstructionRequired" });
+      setStatusMessage({ type: "key", key: "questionRequired" });
       return;
     }
 
@@ -487,6 +487,21 @@ export default function App() {
           </section>
         )}
         <section className="controls-section" aria-label={text.transformControls}>
+          <label className="field-label question-field">
+            <span>{text.question}</span>
+            <textarea
+              disabled={busy}
+              maxLength={1_000}
+              onChange={(event) => {
+                invalidateReview();
+                setInstruction(event.target.value);
+              }}
+              placeholder={text.questionPlaceholder}
+              rows={4}
+              value={instruction}
+            />
+          </label>
+
           <ActionPicker
             ariaLabel={text.editingAction}
             disabled={busy}
@@ -514,27 +529,6 @@ export default function App() {
               </select>
             </label>
           )}
-
-          <label className="field-label">
-            <span>
-              {operation === "custom" ? text.instruction : text.additionalInstruction}
-            </span>
-            <textarea
-              disabled={busy}
-              maxLength={1_000}
-              onChange={(event) => {
-                invalidateReview();
-                setInstruction(event.target.value);
-              }}
-              placeholder={
-                operation === "custom"
-                  ? text.customPlaceholder
-                  : text.optionalPlaceholder
-              }
-              rows={3}
-              value={instruction}
-            />
-          </label>
 
           {phase === "generating" ? (
             <button
