@@ -1,3 +1,4 @@
+import type { ProviderMode } from "./services/provider-settings";
 import type { TransformOperation } from "@suitemind/contracts";
 
 export type UiLanguage = "en" | "zh-CN";
@@ -68,6 +69,15 @@ export interface AppStrings {
   generateAgain: string;
   discardResult: string;
   switchLanguage: string;
+  providerSettings: string;
+  providerMode: string;
+  providerModes: Record<ProviderMode, string>;
+  apiBaseUrl: string;
+  apiKey: string;
+  apiKeyPlaceholder: string;
+  model: string;
+  customProvider: string;
+  apiKeyStorageNotice: string;
   characterCount: (count: number) => string;
 }
 
@@ -143,6 +153,22 @@ export const translations: Record<UiLanguage, AppStrings> = {
     generateAgain: "Generate again",
     discardResult: "Discard result",
     switchLanguage: "Switch to Chinese",
+    providerSettings: "Provider settings",
+    providerMode: "Provider",
+    providerModes: {
+      suitemind: "SuiteMind API",
+      "openai-compatible": "OpenAI-compatible",
+      deepseek: "DeepSeek",
+      claude: "Claude",
+      gemini: "Gemini",
+    },
+    apiBaseUrl: "API base URL",
+    apiKey: "API key",
+    apiKeyPlaceholder: "sk-...",
+    model: "Model",
+    customProvider: "Custom API",
+    apiKeyStorageNotice:
+      "Your API key is saved in this add-in's local storage on this device and sent directly to the selected provider. Browser CORS support is required because no relay server is used.",
     characterCount: (count) => `${count.toLocaleString("en")} chars`,
   },
   "zh-CN": {
@@ -213,6 +239,22 @@ export const translations: Record<UiLanguage, AppStrings> = {
     generateAgain: "重新生成",
     discardResult: "丢弃结果",
     switchLanguage: "切换到英文",
+    providerSettings: "API 设置",
+    providerMode: "服务提供方",
+    providerModes: {
+      suitemind: "SuiteMind API",
+      "openai-compatible": "OpenAI 兼容接口",
+      deepseek: "DeepSeek",
+      claude: "Claude",
+      gemini: "Gemini",
+    },
+    apiBaseUrl: "API 接口地址",
+    apiKey: "API Key",
+    apiKeyPlaceholder: "sk-...",
+    model: "模型",
+    customProvider: "自定义 API",
+    apiKeyStorageNotice:
+      "API Key 会保存在此插件当前设备的本地存储中，并直接发送给所选模型服务商。当前不使用中转后端，因此服务商必须支持浏览器跨域请求。",
     characterCount: (count) => `${count.toLocaleString("zh-CN")} 字符`,
   },
 };
