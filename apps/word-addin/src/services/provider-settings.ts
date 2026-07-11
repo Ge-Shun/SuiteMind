@@ -1,5 +1,4 @@
-export type ProviderMode =
-  "suitemind" | "openai-compatible" | "deepseek" | "claude" | "gemini";
+export type ProviderMode = "openai-compatible" | "deepseek" | "claude" | "gemini";
 
 export interface ProviderSettings {
   mode: ProviderMode;
@@ -17,15 +16,7 @@ export const providerModes = [
   "gemini",
 ] as const satisfies readonly ProviderMode[];
 
-export const directProviderModes = providerModes;
-
 const defaultProviderSettingsByMode: Record<ProviderMode, ProviderSettings> = {
-  suitemind: {
-    mode: "suitemind",
-    baseUrl: "",
-    apiKey: "",
-    model: "",
-  },
   "openai-compatible": {
     mode: "openai-compatible",
     baseUrl: "https://api.openai.com/v1",
@@ -36,7 +27,7 @@ const defaultProviderSettingsByMode: Record<ProviderMode, ProviderSettings> = {
     mode: "deepseek",
     baseUrl: "https://api.deepseek.com",
     apiKey: "",
-    model: "deepseek-v4-flash",
+    model: "deepseek-chat",
   },
   claude: {
     mode: "claude",
@@ -62,15 +53,8 @@ export function getDefaultProviderSettings(mode: ProviderMode): ProviderSettings
 export function isProviderMode(value: unknown): value is ProviderMode {
   return (
     typeof value === "string" &&
-    (value === "suitemind" ||
-      providerModes.includes(value as (typeof providerModes)[number]))
+    providerModes.includes(value as (typeof providerModes)[number])
   );
-}
-
-export function isDirectProviderMode(
-  mode: ProviderMode,
-): mode is Exclude<ProviderMode, "suitemind"> {
-  return mode !== "suitemind";
 }
 
 export function normalizeProviderSettings(
@@ -84,6 +68,11 @@ export function normalizeProviderSettings(
   };
 }
 
+export function hasCompleteProviderSettings(settings: ProviderSettings): boolean {
+  const normalized = normalizeProviderSettings(settings);
+  return Boolean(normalized.baseUrl && normalized.apiKey && normalized.model);
+}
+
 export function loadProviderSettings(): ProviderSettings {
   try {
     const savedSettings = window.localStorage.getItem(PROVIDER_SETTINGS_STORAGE_KEY);
@@ -93,10 +82,7 @@ export function loadProviderSettings(): ProviderSettings {
     }
 
     const parsed = JSON.parse(savedSettings) as Partial<ProviderSettings>;
-    const mode =
-      isProviderMode(parsed.mode) && parsed.mode !== "suitemind"
-        ? parsed.mode
-        : "openai-compatible";
+    const mode = isProviderMode(parsed.mode) ? parsed.mode : "openai-compatible";
 
     return {
       ...getDefaultProviderSettings(mode),

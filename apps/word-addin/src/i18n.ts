@@ -1,5 +1,6 @@
-import type { ProviderMode } from "./services/provider-settings";
 import type { TransformOperation } from "@suitemind/contracts";
+
+import type { ProviderMode } from "./services/provider-settings";
 
 export type UiLanguage = "en" | "zh-CN";
 export type PreviewView = "diff" | "before" | "after";
@@ -20,10 +21,14 @@ export type TargetLanguage = (typeof targetLanguageValues)[number];
 
 export type StatusMessageKey =
   | "questionRequired"
+  | "editingInstructionRequired"
+  | "providerSettingsRequired"
   | "readingContext"
   | "generating"
   | "replacing"
   | "inserting"
+  | "answerCopied"
+  | "apiKeyCleared"
   | "mockReplaced"
   | "mockInserted"
   | "wordReplaced"
@@ -42,7 +47,7 @@ export type ErrorMessageKey =
   | "wordOnly"
   | "emptyResponse"
   | "incompleteStream"
-  | "apiUnavailable";
+  | "localProxyUnavailable";
 
 export interface AppStrings {
   actions: Record<TransformOperation, string>;
@@ -50,20 +55,25 @@ export interface AppStrings {
   previewViews: Record<PreviewView, string>;
   status: Record<StatusMessageKey, string>;
   errors: Record<ErrorMessageKey, string>;
-  demo: string;
   transformControls: string;
   editingAction: string;
   targetLanguage: string;
   question: string;
   questionPlaceholder: string;
+  editingInstruction: string;
+  editingInstructionPlaceholder: string;
+  additionalInstruction: string;
+  additionalInstructionPlaceholder: string;
   stop: string;
   generateFromWord: string;
   reviewResult: string;
+  answer: string;
   previewMode: string;
   paragraph: string;
   selection: string;
   replace: string;
   insertBelow: string;
+  copyAnswer: string;
   generateAgain: string;
   discardResult: string;
   switchLanguage: string;
@@ -75,6 +85,7 @@ export interface AppStrings {
   apiKeyPlaceholder: string;
   model: string;
   customProvider: string;
+  clearApiKey: string;
   apiKeyStorageNotice: string;
   characterCount: (count: number) => string;
 }
@@ -82,12 +93,13 @@ export interface AppStrings {
 export const translations: Record<UiLanguage, AppStrings> = {
   en: {
     actions: {
+      ask: "Ask",
       polish: "Polish",
       rewrite: "Rewrite",
       translate: "Translate",
       summarize: "Summarize",
       continue: "Continue",
-      custom: "Question",
+      custom: "Custom edit",
     },
     targetLanguages: {
       "Chinese (Simplified)": "Chinese (Simplified)",
@@ -104,13 +116,18 @@ export const translations: Record<UiLanguage, AppStrings> = {
       after: "After",
     },
     status: {
-      questionRequired: "Enter a question or instruction first.",
+      questionRequired: "Enter a question first.",
+      editingInstructionRequired: "Enter an editing instruction first.",
+      providerSettingsRequired:
+        "Complete the API base URL, API key, and model in Model settings.",
       readingContext: "Reading Word context...",
       generating: "Generating...",
       replacing: "Replacing selection...",
       inserting: "Inserting result...",
-      mockReplaced: "Selection replaced in the browser demo.",
-      mockInserted: "Result inserted in the browser demo.",
+      answerCopied: "Answer copied to the clipboard.",
+      apiKeyCleared: "The saved API key was cleared.",
+      mockReplaced: "Selection replaced in the browser preview.",
+      mockInserted: "Result inserted in the browser preview.",
       wordReplaced: "Selection replaced. Word Undo can restore it.",
       wordInserted: "Result inserted. Word Undo can remove it.",
     },
@@ -128,31 +145,36 @@ export const translations: Record<UiLanguage, AppStrings> = {
       officeUnavailable:
         "Microsoft Office is unavailable. Open this add-in in Word or use ?mockOffice=1.",
       wordOnly: "SuiteMind currently supports Microsoft Word only.",
-      emptyResponse: "The SuiteMind API returned no response body.",
-      incompleteStream: "The SuiteMind API stream ended before completion.",
-      apiUnavailable: "SuiteMind API is unavailable.",
+      emptyResponse: "The AI provider returned no response body.",
+      incompleteStream: "The AI provider stream ended before completion.",
+      localProxyUnavailable:
+        "Direct provider access was blocked and the local proxy is unavailable. Run npm run proxy:local on this computer.",
     },
-    demo: "Demo",
-    transformControls: "Transform controls",
-    editingAction: "Assistant actions",
+    transformControls: "AI workspace",
+    editingAction: "Action",
     targetLanguage: "Target language",
     question: "Question",
-    questionPlaceholder: "Ask SuiteMind what to do with the selected Word text",
+    questionPlaceholder: "Ask a question about the selected Word text",
+    editingInstruction: "Editing instruction",
+    editingInstructionPlaceholder: "Describe how the selected text should change",
+    additionalInstruction: "Additional instruction",
+    additionalInstructionPlaceholder: "Optional tone, audience, or constraints",
     stop: "Stop",
     generateFromWord: "Generate from Word",
     reviewResult: "Review result",
+    answer: "Answer",
     previewMode: "Preview mode",
     paragraph: "Paragraph",
     selection: "Selection",
     replace: "Replace",
     insertBelow: "Insert below",
+    copyAnswer: "Copy answer",
     generateAgain: "Generate again",
     discardResult: "Discard result",
     switchLanguage: "Switch to Chinese",
     providerSettings: "Model settings",
     providerMode: "Provider",
     providerModes: {
-      suitemind: "SuiteMind API",
       "openai-compatible": "OpenAI-compatible",
       deepseek: "DeepSeek",
       claude: "Claude",
@@ -163,18 +185,20 @@ export const translations: Record<UiLanguage, AppStrings> = {
     apiKeyPlaceholder: "sk-...",
     model: "Model",
     customProvider: "Custom API",
+    clearApiKey: "Clear saved API key",
     apiKeyStorageNotice:
-      "Your API key is saved in this add-in's local storage on this device and sent directly to the selected provider. Browser CORS support is required because no relay server is used.",
+      "Your API key is stored persistently in this add-in on this device until you clear it. It is sent to the selected provider directly or through the temporary local proxy, and is never sent to a SuiteMind server.",
     characterCount: (count) => `${count.toLocaleString("en")} chars`,
   },
   "zh-CN": {
     actions: {
+      ask: "提问",
       polish: "润色",
       rewrite: "改写",
       translate: "翻译",
       summarize: "总结",
       continue: "续写",
-      custom: "提问",
+      custom: "自定义修改",
     },
     targetLanguages: {
       "Chinese (Simplified)": "简体中文",
@@ -191,13 +215,17 @@ export const translations: Record<UiLanguage, AppStrings> = {
       after: "结果",
     },
     status: {
-      questionRequired: "请先输入问题或指令。",
+      questionRequired: "请先输入问题。",
+      editingInstructionRequired: "请先输入修改指令。",
+      providerSettingsRequired: "请在模型配置中填写完整的接口地址、API Key 和模型。",
       readingContext: "正在读取 Word 上下文...",
       generating: "正在生成...",
       replacing: "正在替换选区...",
       inserting: "正在插入结果...",
-      mockReplaced: "已在浏览器演示中替换选区。",
-      mockInserted: "已在浏览器演示中插入结果。",
+      answerCopied: "回答已复制到剪贴板。",
+      apiKeyCleared: "已清除保存的 API Key。",
+      mockReplaced: "已在浏览器预览中替换选区。",
+      mockInserted: "已在浏览器预览中插入结果。",
       wordReplaced: "已替换选区，可使用 Word 撤销恢复。",
       wordInserted: "已插入结果，可使用 Word 撤销删除。",
     },
@@ -212,31 +240,36 @@ export const translations: Record<UiLanguage, AppStrings> = {
       officeJsLoad: "无法加载 Microsoft Office.js。",
       officeUnavailable: "Microsoft Office 不可用，请在 Word 中打开插件。",
       wordOnly: "SuiteMind 当前仅支持 Microsoft Word。",
-      emptyResponse: "SuiteMind API 未返回响应内容。",
-      incompleteStream: "SuiteMind API 流式响应在完成前中断。",
-      apiUnavailable: "SuiteMind API 当前不可用。",
+      emptyResponse: "AI 服务未返回响应内容。",
+      incompleteStream: "AI 服务的流式响应在完成前中断。",
+      localProxyUnavailable:
+        "模型接口禁止浏览器直连，且本地代理未运行。请在此电脑上运行 npm run proxy:local。",
     },
-    demo: "演示",
-    transformControls: "文本处理",
-    editingAction: "辅助功能",
+    transformControls: "AI 工作区",
+    editingAction: "操作",
     targetLanguage: "目标语言",
-    question: "输入问题",
-    questionPlaceholder: "告诉 SuiteMind 需要如何处理 Word 中选中的文本",
+    question: "问题",
+    questionPlaceholder: "针对 Word 中选中的文本进行提问",
+    editingInstruction: "修改指令",
+    editingInstructionPlaceholder: "描述需要如何修改选中的文本",
+    additionalInstruction: "附加要求",
+    additionalInstructionPlaceholder: "可选：语气、受众或限制",
     stop: "停止",
     generateFromWord: "从 Word 生成",
     reviewResult: "审阅结果",
+    answer: "回答",
     previewMode: "预览模式",
     paragraph: "段落",
     selection: "选区",
     replace: "替换",
     insertBelow: "插入下方",
+    copyAnswer: "复制回答",
     generateAgain: "重新生成",
     discardResult: "丢弃结果",
     switchLanguage: "切换到英文",
     providerSettings: "模型配置",
     providerMode: "服务提供方",
     providerModes: {
-      suitemind: "SuiteMind API",
       "openai-compatible": "OpenAI 兼容接口",
       deepseek: "DeepSeek",
       claude: "Claude",
@@ -247,8 +280,9 @@ export const translations: Record<UiLanguage, AppStrings> = {
     apiKeyPlaceholder: "sk-...",
     model: "模型",
     customProvider: "自定义 API",
+    clearApiKey: "清除已保存的 API Key",
     apiKeyStorageNotice:
-      "API Key 会保存在此插件当前设备的本地存储中，并直接发送给所选模型服务商。当前不使用中转后端，因此服务商必须支持浏览器跨域请求。",
+      "API Key 会持久保存在此插件当前设备中，直到你主动清除。Key 会直接发送给模型服务商，或经临时本地代理转发，不会发送到 SuiteMind 服务器。",
     characterCount: (count) => `${count.toLocaleString("zh-CN")} 字符`,
   },
 };

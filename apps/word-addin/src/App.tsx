@@ -1,11 +1,13 @@
 import type { TransformOperation } from "@suitemind/contracts";
 import {
   ArrowDownToLine,
+  Copy,
   RefreshCw,
   Replace,
   Send,
   Settings,
   Square,
+  Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -32,10 +34,10 @@ import {
   SelectionExpiredError,
   StaleSelectionError,
 } from "./office";
-import { checkApiHealth, transformText } from "./services/api";
+import { transformText } from "./services/api";
 import {
   getDefaultProviderSettings,
-  isDirectProviderMode,
+  hasCompleteProviderSettings,
   loadProviderSettings,
   normalizeProviderSettings,
   providerModes,
@@ -52,14 +54,15 @@ type StatusMessage =
 const knownErrorMessages: Record<string, ErrorMessageKey> = {
   "The selection is longer than 10,000 characters.": "selectionTooLong",
   "The AI provider returned an empty result.": "emptyProvider",
+  "The AI provider returned no response body.": "emptyResponse",
+  "The AI provider stream ended before completion.": "incompleteStream",
+  "Direct provider access was blocked and the local proxy is unavailable. Run npm run proxy:local on this computer.":
+    "localProxyUnavailable",
   "Microsoft Office.js did not load in time.": "officeJsTimeout",
   "Microsoft Office.js could not be loaded.": "officeJsLoad",
   "Microsoft Office is unavailable. Open this add-in in Word or use ?mockOffice=1.":
     "officeUnavailable",
   "SuiteMind currently supports Microsoft Word only.": "wordOnly",
-  "The SuiteMind API returned no response body.": "emptyResponse",
-  "The SuiteMind API stream ended before completion.": "incompleteStream",
-  "SuiteMind API is unavailable.": "apiUnavailable",
 };
 
 function getErrorMessage(error: unknown, text: AppStrings): string {
@@ -86,7 +89,7 @@ function getErrorMessage(error: unknown, text: AppStrings): string {
 export default function App() {
   const [language, setLanguage] = useState<UiLanguage>(getInitialUiLanguage);
   const [adapter, setAdapter] = useState<OfficeAdapter | null>(null);
-  const [operation, setOperation] = useState<TransformOperation>("custom");
+  const [operation, setOperation] = useState<TransformOperation>("ask");
   const [instruction, setInstruction] = useState("");
   const [targetLanguage, setTargetLanguage] =
     useState<TargetLanguage>("Chinese (Simplified)");
@@ -96,7 +99,6 @@ export default function App() {
   const [result, setResult] = useState("");
   const [generationComplete, setGenerationComplete] = useState(false);
   const [previewView, setPreviewView] = useState<PreviewView>("diff");
-  const [provider, setProvider] = useState("offline");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [providerSettings, setProviderSettings] =
     useState<ProviderSettings>(loadProviderSettings);
@@ -109,9 +111,8 @@ export default function App() {
     : "";
 
   const busy = phase === "reading" || phase === "generating" || phase === "applying";
-  const activeProviderLabel = isDirectProviderMode(providerSettings.mode)
-    ? providerSettings.model || text.customProvider
-    : provider;
+  const activeProviderLabel = providerSettings.model || text.customProvider;
+  const providerReady = hasCompleteProviderSettings(providerSettings);
   const canGenerate = Boolean(adapter) && !busy;
 
   function invalidateReview() {
@@ -135,6 +136,7 @@ export default function App() {
   function changeOperation(nextOperation: TransformOperation) {
     invalidateReview();
     setOperation(nextOperation);
+    setInstruction("");
   }
 
   useEffect(() => {
@@ -144,9 +146,6 @@ export default function App() {
 
   useEffect(() => {
     saveProviderSettings(providerSettings);
-    if (isDirectProviderMode(providerSettings.mode)) {
-      setProvider(providerSettings.model || "custom");
-    }
   }, [providerSettings]);
 
   useEffect(() => {
@@ -171,41 +170,27 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    let active = true;
-
-    if (isDirectProviderMode(providerSettings.mode)) {
-      setProvider(providerSettings.model || "custom");
-      return () => {
-        active = false;
-      };
-    }
-
-    void checkApiHealth()
-      .then((health) => {
-        if (active) {
-          setProvider(health.provider === "mock" ? "mock" : health.model);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setProvider("offline");
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [providerSettings.mode, providerSettings.model]);
-
   async function generate() {
     if (!adapter || busy) {
       return;
     }
 
-    if (operation === "custom" && !instruction.trim()) {
+    if (!providerReady) {
+      setSettingsOpen(true);
+      setPhase("error");
+      setStatusMessage({ type: "key", key: "providerSettingsRequired" });
+      return;
+    }
+
+    if (operation === "ask" && !instruction.trim()) {
       setPhase("error");
       setStatusMessage({ type: "key", key: "questionRequired" });
+      return;
+    }
+
+    if (operation === "custom" && !instruction.trim()) {
+      setPhase("error");
+      setStatusMessage({ type: "key", key: "editingInstructionRequired" });
       return;
     }
 
@@ -251,11 +236,7 @@ export default function App() {
             generated += text;
             setResult(generated);
           },
-          onDone: (event) => {
-            if (event.model) {
-              setProvider(event.model);
-            }
-          },
+          onDone: () => undefined,
         },
         { providerSettings: normalizeProviderSettings(providerSettings) },
       );
@@ -265,7 +246,7 @@ export default function App() {
       }
 
       setGenerationComplete(true);
-      setPreviewView("diff");
+      setPreviewView(operation === "ask" ? "after" : "diff");
       setPhase("review");
       setStatusMessage(null);
     } catch (error) {
@@ -306,8 +287,30 @@ export default function App() {
     });
   }
 
+  function clearProviderApiKey() {
+    invalidateReview();
+    setProviderSettings((current) => ({ ...current, apiKey: "" }));
+    setPhase("success");
+    setStatusMessage({ type: "key", key: "apiKeyCleared" });
+  }
+
   function cancelGeneration() {
     abortRef.current?.abort();
+  }
+
+  async function copyAnswer() {
+    if (!result) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(result);
+      setPhase("success");
+      setStatusMessage({ type: "key", key: "answerCopied" });
+    } catch (error) {
+      setPhase("error");
+      setStatusMessage({ type: "error", error });
+    }
   }
 
   async function applyResult(mode: ApplyMode) {
@@ -410,15 +413,11 @@ export default function App() {
           </button>
           <div
             className="connection"
-            data-online={
-              isDirectProviderMode(providerSettings.mode) || provider !== "offline"
-            }
+            data-online={providerReady}
             title={activeProviderLabel}
           >
             <span className="connection-dot" />
-            <span className="connection-label">
-              {adapter?.mode === "mock" ? text.demo : activeProviderLabel}
-            </span>
+            <span className="connection-label">{activeProviderLabel}</span>
           </div>
         </div>
       </header>
@@ -443,52 +442,63 @@ export default function App() {
               </select>
             </label>
 
-            {isDirectProviderMode(providerSettings.mode) && (
-              <>
-                <label className="field-label">
-                  <span>{text.apiBaseUrl}</span>
-                  <input
-                    disabled={busy}
-                    onChange={(event) =>
-                      updateProviderSettings({ baseUrl: event.target.value })
-                    }
-                    placeholder="https://api.openai.com/v1"
-                    type="url"
-                    value={providerSettings.baseUrl}
-                  />
-                </label>
-                <label className="field-label">
-                  <span>{text.apiKey}</span>
-                  <input
-                    autoComplete="off"
-                    disabled={busy}
-                    onChange={(event) =>
-                      updateProviderSettings({ apiKey: event.target.value })
-                    }
-                    placeholder={text.apiKeyPlaceholder}
-                    type="password"
-                    value={providerSettings.apiKey}
-                  />
-                </label>
-                <label className="field-label">
-                  <span>{text.model}</span>
-                  <input
-                    disabled={busy}
-                    onChange={(event) =>
-                      updateProviderSettings({ model: event.target.value })
-                    }
-                    placeholder="gpt-4o-mini"
-                    value={providerSettings.model}
-                  />
-                </label>
-                <p className="settings-note">{text.apiKeyStorageNotice}</p>
-              </>
-            )}
+            <label className="field-label">
+              <span>{text.apiBaseUrl}</span>
+              <input
+                disabled={busy}
+                onChange={(event) =>
+                  updateProviderSettings({ baseUrl: event.target.value })
+                }
+                placeholder="https://api.openai.com/v1"
+                type="url"
+                value={providerSettings.baseUrl}
+              />
+            </label>
+            <label className="field-label">
+              <span>{text.apiKey}</span>
+              <input
+                autoComplete="off"
+                disabled={busy}
+                onChange={(event) =>
+                  updateProviderSettings({ apiKey: event.target.value })
+                }
+                placeholder={text.apiKeyPlaceholder}
+                type="password"
+                value={providerSettings.apiKey}
+              />
+            </label>
+            <label className="field-label">
+              <span>{text.model}</span>
+              <input
+                disabled={busy}
+                onChange={(event) =>
+                  updateProviderSettings({ model: event.target.value })
+                }
+                placeholder="gpt-4o-mini"
+                value={providerSettings.model}
+              />
+            </label>
+            <p className="settings-note">{text.apiKeyStorageNotice}</p>
+            <button
+              className="clear-key-button"
+              disabled={busy || !providerSettings.apiKey}
+              onClick={clearProviderApiKey}
+              type="button"
+            >
+              <Trash2 size={15} />
+              {text.clearApiKey}
+            </button>
           </section>
         )}
         <section className="controls-section" aria-label={text.transformControls}>
           <label className="field-label question-field">
-            <span>{text.question}</span>
+            <span>
+              {operation === "ask"
+                ? text.question
+                : operation === "custom"
+                  ? text.editingInstruction
+                  : text.additionalInstruction}
+            </span>
             <textarea
               disabled={busy}
               maxLength={1_000}
@@ -496,7 +506,13 @@ export default function App() {
                 invalidateReview();
                 setInstruction(event.target.value);
               }}
-              placeholder={text.questionPlaceholder}
+              placeholder={
+                operation === "ask"
+                  ? text.questionPlaceholder
+                  : operation === "custom"
+                    ? text.editingInstructionPlaceholder
+                    : text.additionalInstructionPlaceholder
+              }
               rows={4}
               value={instruction}
             />
@@ -557,24 +573,28 @@ export default function App() {
         {(phase === "generating" || result) && snapshot && (
           <section className="review-section" aria-label={text.reviewResult}>
             <div className="review-header">
-              <div
-                className="segmented-control"
-                role="tablist"
-                aria-label={text.previewMode}
-              >
-                {(["diff", "before", "after"] as const).map((view) => (
-                  <button
-                    aria-selected={previewView === view}
-                    className="segment-button"
-                    key={view}
-                    onClick={() => setPreviewView(view)}
-                    role="tab"
-                    type="button"
-                  >
-                    {text.previewViews[view]}
-                  </button>
-                ))}
-              </div>
+              {operation === "ask" ? (
+                <span className="answer-label">{text.answer}</span>
+              ) : (
+                <div
+                  className="segmented-control"
+                  role="tablist"
+                  aria-label={text.previewMode}
+                >
+                  {(["diff", "before", "after"] as const).map((view) => (
+                    <button
+                      aria-selected={previewView === view}
+                      className="segment-button"
+                      key={view}
+                      onClick={() => setPreviewView(view)}
+                      role="tab"
+                      type="button"
+                    >
+                      {text.previewViews[view]}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="review-meta">
                 <span className="context-label">
                   {snapshot.source === "paragraph" ? text.paragraph : text.selection}
@@ -585,20 +605,35 @@ export default function App() {
               </div>
             </div>
 
-            <DiffPreview after={result} before={snapshot.text} view={previewView} />
+            <DiffPreview
+              after={result}
+              before={snapshot.text}
+              view={operation === "ask" ? "after" : previewView}
+            />
 
             {generationComplete &&
               (phase === "review" || phase === "error") &&
               result && (
                 <div className="review-actions">
-                  <button
-                    className="apply-button"
-                    onClick={() => void applyResult("replace")}
-                    type="button"
-                  >
-                    <Replace size={16} />
-                    {text.replace}
-                  </button>
+                  {operation === "ask" ? (
+                    <button
+                      className="apply-button"
+                      onClick={() => void copyAnswer()}
+                      type="button"
+                    >
+                      <Copy size={16} />
+                      {text.copyAnswer}
+                    </button>
+                  ) : (
+                    <button
+                      className="apply-button"
+                      onClick={() => void applyResult("replace")}
+                      type="button"
+                    >
+                      <Replace size={16} />
+                      {text.replace}
+                    </button>
+                  )}
                   <button
                     className="secondary-button"
                     onClick={() => void applyResult("insert")}

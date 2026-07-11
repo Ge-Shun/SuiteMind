@@ -9,24 +9,24 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "dev": "concurrently -n api,word -c green,blue \"npm run dev -w @suitemind/api\" \"npm run dev -w @suitemind/word-addin\"",
-    "dev:api": "npm run dev -w @suitemind/api",
+    "dev": "npm run dev -w @suitemind/word-addin",
     "dev:word": "npm run dev -w @suitemind/word-addin",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "generate:icons": "node scripts/generate-icons.mjs",
     "generate:production-manifest": "node scripts/generate-production-manifest.mjs",
-    "sideload:word": "concurrently -k -n api,word -c green,blue \"npm run dev:api\" \"npm run sideload -w @suitemind/word-addin\"",
+    "proxy:certs": "npm run dev-certs -w @suitemind/word-addin",
+    "proxy:local": "node scripts/local-provider-proxy.mjs",
+    "sideload:word": "npm run sideload -w @suitemind/word-addin",
     "stop:word": "npm run stop -w @suitemind/word-addin",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
-    "concurrently": "^10.0.3",
     "prettier": "^3.9.5",
     "typescript": "^7.0.2"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12.0"
   }
 }

@@ -1,17 +1,12 @@
-import {
-  transformStreamEventSchema,
-  type TransformRequest,
-  type TransformStreamEvent,
-} from "@suitemind/contracts";
+import type { TransformRequest, TransformStreamEvent } from "@suitemind/contracts";
 
 import { normalizeProviderSettings, type ProviderSettings } from "./provider-settings";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/$/, "");
-const API_TOKEN = import.meta.env.VITE_API_TOKEN ?? "";
-
-function buildApiHeaders(): Record<string, string> {
-  return API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {};
-}
+const LOCAL_PROVIDER_PROXY_URL =
+  import.meta.env.VITE_LOCAL_PROVIDER_PROXY_URL ??
+  "https://localhost:3001/api/provider/chat/completions";
+const LOCAL_PROXY_UNAVAILABLE_MESSAGE =
+  "Direct provider access was blocked and the local proxy is unavailable. Run npm run proxy:local on this computer.";
 
 export class SuiteMindApiError extends Error {
   readonly code: string;
@@ -26,27 +21,13 @@ export class SuiteMindApiError extends Error {
 }
 
 interface TransformOptions {
-  providerSettings?: ProviderSettings;
+  providerSettings: ProviderSettings;
 }
 
 interface TransformCallbacks {
   signal: AbortSignal;
   onDelta: (text: string) => void;
   onDone?: (event: Extract<TransformStreamEvent, { type: "done" }>) => void;
-}
-
-function parseSseBlock(block: string): TransformStreamEvent | null {
-  const data = block
-    .split(/\r?\n/)
-    .filter((line) => line.startsWith("data:"))
-    .map((line) => line.slice(5).trimStart())
-    .join("\n");
-
-  if (!data) {
-    return null;
-  }
-
-  return transformStreamEventSchema.parse(JSON.parse(data));
 }
 
 async function readErrorResponse(response: Response): Promise<SuiteMindApiError> {
@@ -82,6 +63,7 @@ async function readErrorResponse(response: Response): Promise<SuiteMindApiError>
 }
 
 const operationInstructions: Record<TransformRequest["operation"], string> = {
+  ask: "Answer the user's question using the document text as the source context. Do not rewrite the document unless the user explicitly asks for a rewritten version.",
   polish:
     "Improve clarity, grammar, tone, and flow while preserving the meaning and level of detail.",
   rewrite:
@@ -95,13 +77,15 @@ const operationInstructions: Record<TransformRequest["operation"], string> = {
   custom: "Follow the user's editing instruction precisely.",
 };
 
-function buildPrompt(
+export function buildPrompt(
   request: TransformRequest,
 ): [{ role: "system"; content: string }, { role: "user"; content: string }] {
   const systemParts = [
     "You are SuiteMind, an editing assistant embedded in Microsoft Word.",
     operationInstructions[request.operation],
-    "Return only the transformed document text. Do not add commentary, labels, quotation marks, or markdown fences unless the user explicitly requests them.",
+    request.operation === "ask"
+      ? "Return only the answer. Do not add a preamble, quotation marks, or markdown fences unless the user explicitly requests them."
+      : "Return only the transformed document text. Do not add commentary, labels, quotation marks, or markdown fences unless the user explicitly requests them.",
   ];
 
   if (request.documentLanguage) {
@@ -115,7 +99,13 @@ function buildPrompt(
   const userParts = [];
 
   if (request.instruction) {
-    userParts.push(`Instruction:\n${request.instruction}`);
+    const label =
+      request.operation === "ask"
+        ? "Question"
+        : request.operation === "custom"
+          ? "Editing instruction"
+          : "Additional instruction";
+    userParts.push(`${label}:\n${request.instruction}`);
   }
 
   userParts.push(`Document text:\n${request.text}`);
@@ -208,6 +198,54 @@ function readSseData(block: string): string | null {
   return data || null;
 }
 
+async function fetchOpenAiCompatible(
+  endpoint: string,
+  apiKey: string,
+  body: string,
+  signal: AbortSignal,
+): Promise<Response> {
+  const headers = {
+    Accept: "text/event-stream",
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+  };
+
+  try {
+    return await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body,
+      signal,
+    });
+  } catch (directError) {
+    if (signal.aborted) {
+      throw directError;
+    }
+
+    try {
+      return await fetch(LOCAL_PROVIDER_PROXY_URL, {
+        method: "POST",
+        headers: {
+          ...headers,
+          "X-SuiteMind-Target-Url": endpoint,
+        },
+        body,
+        signal,
+      });
+    } catch (proxyError) {
+      if (signal.aborted) {
+        throw proxyError;
+      }
+
+      throw new SuiteMindApiError(
+        "LOCAL_PROXY_UNAVAILABLE",
+        LOCAL_PROXY_UNAVAILABLE_MESSAGE,
+        true,
+      );
+    }
+  }
+}
+
 async function transformWithOpenAiCompatible(
   request: TransformRequest,
   callbacks: TransformCallbacks,
@@ -223,20 +261,18 @@ async function transformWithOpenAiCompatible(
     );
   }
 
-  const response = await fetch(`${normalized.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Accept: "text/event-stream",
-      Authorization: `Bearer ${normalized.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: normalized.model,
-      messages: buildPrompt(request),
-      stream: true,
-    }),
-    signal: callbacks.signal,
+  const endpoint = `${normalized.baseUrl}/chat/completions`;
+  const body = JSON.stringify({
+    model: normalized.model,
+    messages: buildPrompt(request),
+    stream: true,
   });
+  const response = await fetchOpenAiCompatible(
+    endpoint,
+    normalized.apiKey,
+    body,
+    callbacks.signal,
+  );
 
   await readProviderStream(response, callbacks, (block) => {
     const data = readSseData(block);
@@ -433,95 +469,7 @@ async function transformWithDirectProvider(
 export async function transformText(
   request: TransformRequest,
   callbacks: TransformCallbacks,
-  options: TransformOptions = {},
+  options: TransformOptions,
 ): Promise<void> {
-  if (options.providerSettings && options.providerSettings.mode !== "suitemind") {
-    return transformWithDirectProvider(request, callbacks, options.providerSettings);
-  }
-  const response = await fetch(`${API_BASE_URL}/v1/transform`, {
-    method: "POST",
-    headers: {
-      Accept: "text/event-stream",
-      "Content-Type": "application/json",
-      ...buildApiHeaders(),
-    },
-    body: JSON.stringify(request),
-    signal: callbacks.signal,
-  });
-
-  if (!response.ok) {
-    throw await readErrorResponse(response);
-  }
-
-  if (!response.body) {
-    throw new SuiteMindApiError(
-      "EMPTY_RESPONSE",
-      "The SuiteMind API returned no response body.",
-      true,
-    );
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let completed = false;
-
-  const processBlock = (block: string) => {
-    const event = parseSseBlock(block);
-
-    if (!event) {
-      return;
-    }
-
-    if (event.type === "delta") {
-      callbacks.onDelta(event.text);
-    } else if (event.type === "done") {
-      completed = true;
-      callbacks.onDone?.(event);
-    } else {
-      throw new SuiteMindApiError(event.code, event.message, event.retryable);
-    }
-  };
-
-  while (true) {
-    const { done, value } = await reader.read();
-    buffer += decoder.decode(value, { stream: !done }).replace(/\r\n/g, "\n");
-    const blocks = buffer.split("\n\n");
-    buffer = blocks.pop() ?? "";
-
-    for (const block of blocks) {
-      processBlock(block);
-    }
-
-    if (done) {
-      break;
-    }
-  }
-
-  if (buffer.trim()) {
-    processBlock(buffer);
-  }
-
-  if (!completed) {
-    throw new SuiteMindApiError(
-      "INCOMPLETE_STREAM",
-      "The SuiteMind API stream ended before completion.",
-      true,
-    );
-  }
-}
-
-export async function checkApiHealth(): Promise<{
-  provider: string;
-  model: string;
-}> {
-  const response = await fetch(`${API_BASE_URL}/health`, {
-    headers: buildApiHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error("SuiteMind API is unavailable.");
-  }
-
-  return (await response.json()) as { provider: string; model: string };
+  return transformWithDirectProvider(request, callbacks, options.providerSettings);
 }

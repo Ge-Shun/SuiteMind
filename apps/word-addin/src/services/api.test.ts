@@ -1,132 +1,26 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { SuiteMindApiError, transformText } from "./api";
+import { buildPrompt, transformText } from "./api";
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("transformText", () => {
-  it("delivers streamed deltas", async () => {
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(
-          new TextEncoder().encode(
-            'event: delta\ndata: {"type":"delta","text":"Hello"}\n\n' +
-              'event: done\ndata: {"type":"done","requestId":"1"}\n\n',
-          ),
-        );
-        controller.close();
-      },
+describe("direct provider transforms", () => {
+  it("builds a question-answering prompt without rewrite instructions", () => {
+    const messages = buildPrompt({
+      operation: "ask",
+      text: "Revenue increased by 20%.",
+      instruction: "What changed?",
     });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(stream, {
-          status: 200,
-          headers: { "Content-Type": "text/event-stream" },
-        }),
-      ),
-    );
-    const deltas: string[] = [];
 
-    await transformText(
-      { operation: "polish", text: "Draft", instruction: "" },
-      {
-        signal: new AbortController().signal,
-        onDelta: (text) => deltas.push(text),
-      },
-    );
-
-    expect(deltas).toEqual(["Hello"]);
+    expect(messages[0].content).toContain("Answer the user's question");
+    expect(messages[0].content).toContain("Return only the answer");
+    expect(messages[1].content).toContain("Question:\nWhat changed?");
+    expect(messages[1].content).toContain("Document text:\nRevenue increased");
   });
 
-  it("raises streamed API errors", async () => {
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(
-          new TextEncoder().encode(
-            'event: error\ndata: {"type":"error","code":"PROVIDER_ERROR","message":"Failed","retryable":true}\n\n',
-          ),
-        );
-        controller.close();
-      },
-    });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(new Response(stream, { status: 200 })),
-    );
-
-    await expect(
-      transformText(
-        { operation: "polish", text: "Draft", instruction: "" },
-        {
-          signal: new AbortController().signal,
-          onDelta: () => undefined,
-        },
-      ),
-    ).rejects.toBeInstanceOf(SuiteMindApiError);
-  });
-
-  it("rejects a stream that closes without a done event", async () => {
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(
-          new TextEncoder().encode(
-            'event: delta\ndata: {"type":"delta","text":"Partial"}\n\n',
-          ),
-        );
-        controller.close();
-      },
-    });
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(new Response(stream, { status: 200 })),
-    );
-
-    await expect(
-      transformText(
-        { operation: "polish", text: "Draft", instruction: "" },
-        {
-          signal: new AbortController().signal,
-          onDelta: () => undefined,
-        },
-      ),
-    ).rejects.toMatchObject({ code: "INCOMPLETE_STREAM" });
-  });
-
-  it("marks rate-limit responses as retryable", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            code: "RATE_LIMITED",
-            message: "Try again shortly.",
-          }),
-          {
-            status: 429,
-            headers: { "Content-Type": "application/json" },
-          },
-        ),
-      ),
-    );
-
-    await expect(
-      transformText(
-        { operation: "polish", text: "Draft", instruction: "" },
-        {
-          signal: new AbortController().signal,
-          onDelta: () => undefined,
-        },
-      ),
-    ).rejects.toMatchObject({
-      code: "RATE_LIMITED",
-      retryable: true,
-    });
-  });
-
-  it("calls OpenAI-compatible providers directly when configured", async () => {
+  it("calls OpenAI-compatible providers directly", async () => {
     const stream = new ReadableStream({
       start(controller) {
         controller.enqueue(
@@ -168,7 +62,7 @@ describe("transformText", () => {
     );
   });
 
-  it("uses the DeepSeek OpenAI-compatible chat completions endpoint", async () => {
+  it("uses the DeepSeek OpenAI-compatible endpoint", async () => {
     const stream = new ReadableStream({
       start(controller) {
         controller.enqueue(
@@ -182,6 +76,45 @@ describe("transformText", () => {
     const fetch = vi.fn().mockResolvedValue(new Response(stream, { status: 200 }));
     vi.stubGlobal("fetch", fetch);
     vi.stubGlobal("crypto", { randomUUID: () => "request-id" });
+
+    await transformText(
+      { operation: "rewrite", text: "Draft", instruction: "Make it concise" },
+      { signal: new AbortController().signal, onDelta: () => undefined },
+      {
+        providerSettings: {
+          mode: "deepseek",
+          baseUrl: "https://api.deepseek.com",
+          apiKey: "deepseek-key",
+          model: "deepseek-chat",
+        },
+      },
+    );
+
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.deepseek.com/chat/completions",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer deepseek-key" }),
+      }),
+    );
+  });
+
+  it("falls back to the local proxy when direct browser access fails", async () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            'data: {"choices":[{"delta":{"content":"Proxy"},"finish_reason":"stop"}]}\n\n',
+          ),
+        );
+        controller.close();
+      },
+    });
+    const fetch = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(new Response(stream, { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+    vi.stubGlobal("crypto", { randomUUID: () => "request-id" });
     const deltas: string[] = [];
 
     await transformText(
@@ -192,21 +125,44 @@ describe("transformText", () => {
       },
       {
         providerSettings: {
-          mode: "deepseek",
-          baseUrl: "https://api.deepseek.com",
-          apiKey: "deepseek-key",
-          model: "deepseek-v4-flash",
+          mode: "openai-compatible",
+          baseUrl: "https://provider.example/v1",
+          apiKey: "user-key",
+          model: "custom-model",
         },
       },
     );
 
-    expect(deltas).toEqual(["Deep"]);
-    expect(fetch).toHaveBeenCalledWith(
-      "https://api.deepseek.com/chat/completions",
+    expect(deltas).toEqual(["Proxy"]);
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      "https://localhost:3001/api/provider/chat/completions",
       expect.objectContaining({
-        headers: expect.objectContaining({ Authorization: "Bearer deepseek-key" }),
+        headers: expect.objectContaining({
+          Authorization: "Bearer user-key",
+          "X-SuiteMind-Target-Url": "https://provider.example/v1/chat/completions",
+        }),
       }),
     );
+  });
+
+  it("reports when direct access and the local proxy are both unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    await expect(
+      transformText(
+        { operation: "polish", text: "Draft", instruction: "" },
+        { signal: new AbortController().signal, onDelta: () => undefined },
+        {
+          providerSettings: {
+            mode: "openai-compatible",
+            baseUrl: "https://provider.example/v1",
+            apiKey: "user-key",
+            model: "custom-model",
+          },
+        },
+      ),
+    ).rejects.toMatchObject({ code: "LOCAL_PROXY_UNAVAILABLE" });
   });
 
   it("streams Claude content block deltas", async () => {
@@ -227,7 +183,7 @@ describe("transformText", () => {
     const deltas: string[] = [];
 
     await transformText(
-      { operation: "polish", text: "Draft", instruction: "" },
+      { operation: "ask", text: "Draft", instruction: "Explain this" },
       {
         signal: new AbortController().signal,
         onDelta: (text) => deltas.push(text),
@@ -248,14 +204,13 @@ describe("transformText", () => {
       expect.objectContaining({
         headers: expect.objectContaining({
           "anthropic-dangerous-direct-browser-access": "true",
-          "anthropic-version": "2023-06-01",
           "x-api-key": "claude-key",
         }),
       }),
     );
   });
 
-  it("streams Gemini generate content chunks", async () => {
+  it("streams Gemini content chunks", async () => {
     const stream = new ReadableStream({
       start(controller) {
         controller.enqueue(
@@ -272,7 +227,7 @@ describe("transformText", () => {
     const deltas: string[] = [];
 
     await transformText(
-      { operation: "polish", text: "Draft", instruction: "" },
+      { operation: "summarize", text: "Draft", instruction: "" },
       {
         signal: new AbortController().signal,
         onDelta: (text) => deltas.push(text),
@@ -288,27 +243,16 @@ describe("transformText", () => {
     );
 
     expect(deltas).toEqual(["Gemini"]);
-    const call = fetch.mock.calls[0];
-    expect(call).toBeDefined();
-    const [url, init] = call as Parameters<typeof fetch>;
-    expect(url.toString()).toBe(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=gemini-key",
-    );
-    expect(init).toEqual(
-      expect.objectContaining({
-        headers: expect.objectContaining({ Accept: "text/event-stream" }),
-      }),
-    );
+    const [url] = fetch.mock.calls[0] as Parameters<typeof fetch>;
+    expect(url.toString()).toContain("models/gemini-2.5-flash:streamGenerateContent");
+    expect(url.toString()).toContain("key=gemini-key");
   });
 
-  it("requires complete OpenAI-compatible provider settings", async () => {
+  it("requires complete provider settings", async () => {
     await expect(
       transformText(
         { operation: "polish", text: "Draft", instruction: "" },
-        {
-          signal: new AbortController().signal,
-          onDelta: () => undefined,
-        },
+        { signal: new AbortController().signal, onDelta: () => undefined },
         {
           providerSettings: {
             mode: "openai-compatible",

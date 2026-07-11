@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 import { UI_LANGUAGE_STORAGE_KEY } from "./i18n";
+import { PROVIDER_SETTINGS_STORAGE_KEY } from "./services/provider-settings";
 
 vi.mock("./office", () => ({
   createOfficeAdapter: vi.fn(async () => ({
@@ -17,11 +18,6 @@ vi.mock("./office", () => ({
 }));
 
 vi.mock("./services/api", () => ({
-  checkApiHealth: vi.fn(async () => ({
-    status: "ok",
-    provider: "mock",
-    model: "suitemind-mock",
-  })),
   transformText: vi.fn(),
 }));
 
@@ -71,18 +67,44 @@ describe("App language switcher", () => {
 
   it("updates an active validation message when the language changes", async () => {
     window.localStorage.setItem(UI_LANGUAGE_STORAGE_KEY, "zh-CN");
+    window.localStorage.setItem(
+      PROVIDER_SETTINGS_STORAGE_KEY,
+      JSON.stringify({
+        mode: "openai-compatible",
+        baseUrl: "https://api.example.com/v1",
+        apiKey: "saved-key",
+        model: "example-model",
+      }),
+    );
     render(<App />);
 
     const generateButton = screen.getByRole("button", { name: "从 Word 生成" });
     await waitFor(() => expect(generateButton).toBeEnabled());
     fireEvent.click(generateButton);
 
-    expect(screen.getByRole("status")).toHaveTextContent("请先输入问题或指令。");
+    expect(screen.getByRole("status")).toHaveTextContent("请先输入问题。");
 
     fireEvent.click(screen.getByRole("switch", { name: "切换到英文" }));
 
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Enter a question or instruction first.",
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("Enter a question first.");
+  });
+
+  it("persists the API key until the user clears it", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Model settings" }));
+
+    const apiKeyInput = screen.getByLabelText("API key");
+    fireEvent.change(apiKeyInput, { target: { value: "persistent-user-key" } });
+
+    await waitFor(() => {
+      const saved = JSON.parse(
+        window.localStorage.getItem(PROVIDER_SETTINGS_STORAGE_KEY) ?? "{}",
+      ) as { apiKey?: string };
+      expect(saved.apiKey).toBe("persistent-user-key");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear saved API key" }));
+
+    expect(apiKeyInput).toHaveValue("");
   });
 });

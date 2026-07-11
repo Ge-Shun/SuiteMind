@@ -2,11 +2,9 @@
 
 ## Prerequisites
 
-- Node.js 20 or newer.
+- Node.js 22.12 or newer.
 - npm 10 or newer.
-- Microsoft Word desktop for Office sideloading.
-
-The browser demo works without Word and without an AI API key.
+- Microsoft Word desktop for host validation.
 
 ## Install
 
@@ -15,12 +13,10 @@ npm install
 npm run generate:icons
 ```
 
-Office development certificates are generated and trusted automatically the
-first time the Word development server starts.
+Office development certificates are generated and trusted automatically when
+the Word development server starts.
 
-## Browser Demo
-
-Start the API and task pane together:
+## Browser Development
 
 ```powershell
 npm run dev
@@ -32,86 +28,88 @@ Open:
 https://localhost:3000/taskpane.html?mockOffice=1
 ```
 
-The demo uses an in-memory Word adapter and the streaming mock AI provider. It
-exercises the same UI, API contract, review flow, and tracked-source checks as
-the Word-hosted build.
+`mockOffice=1` replaces Office.js with an in-memory Word adapter. It simulates
+selection, replacement, insertion, stale-source checks, and review states. It
+does not provide a mock AI model. Configure a provider in Model settings before
+generating.
+
+Provider settings are entered at runtime, not in `.env` files:
+
+- provider
+- API base URL
+- API key
+- model
+
+The complete settings, including the key, are stored in local storage until the
+user clicks **Clear saved API key**.
+
+## Local Provider Proxy
+
+OpenAI-compatible providers that block browser CORS can be used through the
+temporary local HTTPS proxy:
+
+```powershell
+npm run proxy:certs
+npm run proxy:local
+```
+
+For a deployed add-in, allow its exact HTTPS origin when starting the proxy:
+
+```powershell
+$env:SUITEMIND_PROXY_ALLOWED_ORIGINS="https://word.example.com"
+npm run proxy:local
+```
+
+Keep that terminal running while generating. The add-in first tries the provider
+directly, then automatically retries through:
+
+```text
+https://localhost:3001/api/provider/chat/completions
+```
+
+The proxy uses the trusted Office localhost certificate, listens only on the
+current computer, accepts requests only from its configured HTTPS origins,
+accepts only HTTPS `/chat/completions` targets, streams the provider response,
+and does not persist or log the API key or document text. Local development
+origins are allowed by default. Run `npm run proxy:certs` only once per computer.
 
 ## Word Desktop Sideloading
-
-Close any existing SuiteMind development session, then run:
 
 ```powershell
 npm run sideload:word
 ```
 
-This command starts the API, starts the HTTPS task-pane server if port 3000 is
-not already in use, registers `apps/word-addin/manifest.xml`, and opens Word.
-
-Stop the registered Office debugging session with:
+Stop the Office debugging registration with:
 
 ```powershell
 npm run stop:word
 ```
 
-## AI Provider Configuration
-
-The API defaults to the mock provider. To use an OpenAI-compatible API, create
-`apps/api/.env` from `apps/api/.env.example` and set:
-
-```dotenv
-AI_PROVIDER=openai-compatible
-AI_BASE_URL=https://your-provider.example/v1
-AI_API_KEY=your-server-side-key
-AI_MODEL=your-model-id
-API_BEARER_TOKEN=optional-private-deployment-token
-MAX_OUTPUT_CHARS=20000
-RATE_LIMIT_MAX=30
-RATE_LIMIT_WINDOW_MS=60000
-```
-
-`AI_BASE_URL` must be the API root immediately before `/chat/completions`.
-
-The API key is read only by `apps/api`. Never put a model key in a `VITE_*`
-variable because Vite exposes those values to the task-pane bundle.
-
-When `API_BEARER_TOKEN` is configured, set the matching `VITE_API_TOKEN` only
-for a private single-user build. Do not embed a shared secret in a public add-in.
-
-For a deployed task pane, set `VITE_API_BASE_URL` to the public HTTPS SuiteMind
-API URL during the frontend build. Local development uses the Vite `/api`
-same-origin proxy to avoid mixed-content restrictions in Office.
-
 ## Commands
 
 ```powershell
+npm run format:check
 npm run typecheck
 npm test
 npm run build
-npm run format:check
 npm run validate:manifest -w @suitemind/word-addin
 ```
 
-## Security Model
+## Security Boundary
 
-- Document content is sent only when the user starts an action.
-- The API does not log request bodies or document text by default.
-- Model credentials remain on the server.
-- Model output is treated as text, never executable JavaScript or Office.js.
-- No document mutation occurs before explicit user confirmation.
-- The original Word range is tracked across the AI request.
-- A non-empty current paragraph is used when no text is selected.
-- The tracked range is fingerprinted again before a write.
-- Changed source content is rejected instead of being overwritten silently.
-- AI request rate and output-size limits are enforced server-side.
-- CORS responses are limited to configured origins.
+- Document content is sent only after the user starts an action.
+- Provider credentials are stored locally and sent directly to the provider or
+  through the temporary localhost proxy.
+- No SuiteMind backend receives credentials or document text.
+- Model output is text only.
+- No Word mutation occurs before explicit confirmation.
+- Answers can be copied or inserted, but do not replace source text by default.
+- Editing results use tracked Word objects and stale-content fingerprints.
 
 ## Current Formatting Boundary
 
-MVP rewrites operate on selected text. Insert-below inherits the source
-paragraph style, and replacement uses Word's native range insertion. A rewrite
-still cannot preserve every mixed inline formatting run inside the original
-selection. Formatting-aware OOXML or content-control editing remains a later
-enhancement.
+Replacement operates on text ranges and cannot preserve every mixed inline
+formatting run. Insert-below inherits the source paragraph style. Formatting-
+aware OOXML or content-control editing remains a later enhancement.
 
-The add-in manifest requires `WordApi 1.3`, matching the paragraph collection
-and tracked-range APIs used at runtime.
+The manifest requires `WordApi 1.3`.

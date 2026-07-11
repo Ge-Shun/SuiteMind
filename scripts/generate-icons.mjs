@@ -34,6 +34,35 @@ function insideRoundedRect(x, y, left, top, right, bottom, radius) {
   return dx * dx + dy * dy <= radius * radius;
 }
 
+function insideTriangle(x, y, a, b, c) {
+  const sign = (p1, p2, p3) =>
+    (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+  const point = { x, y };
+  const d1 = sign(point, a, b);
+  const d2 = sign(point, b, c);
+  const d3 = sign(point, c, a);
+  const hasNegative = d1 < 0 || d2 < 0 || d3 < 0;
+  const hasPositive = d1 > 0 || d2 > 0 || d3 > 0;
+
+  return !(hasNegative && hasPositive);
+}
+
+function distanceToSegment(x, y, start, end) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+  const t = lengthSquared
+    ? Math.max(
+        0,
+        Math.min(1, ((x - start.x) * dx + (y - start.y) * dy) / lengthSquared),
+      )
+    : 0;
+  const nearestX = start.x + t * dx;
+  const nearestY = start.y + t * dy;
+
+  return Math.hypot(x - nearestX, y - nearestY);
+}
+
 function createIcon(size) {
   const pixels = Buffer.alloc(size * size * 4);
   const setPixel = (x, y, [red, green, blue, alpha = 255]) => {
@@ -45,7 +74,7 @@ function createIcon(size) {
   };
 
   const inset = Math.max(1, Math.round(size * 0.04));
-  const radius = Math.max(2, Math.round(size * 0.18));
+  const radius = Math.max(2, Math.round(size * 0.22));
 
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
@@ -60,24 +89,18 @@ function createIcon(size) {
           radius,
         )
       ) {
-        setPixel(x, y, [27, 61, 88]);
+        setPixel(x, y, [40, 120, 189]);
       }
     }
   }
 
-  const bandRadius = Math.max(1, Math.round(size * 0.08));
-  const vertical = {
-    left: Math.round(size * 0.2),
-    top: Math.round(size * 0.16),
-    right: Math.round(size * 0.48),
-    bottom: Math.round(size * 0.84),
+  const document = {
+    left: Math.round(size * 0.24),
+    top: Math.round(size * 0.17),
+    right: Math.round(size * 0.76),
+    bottom: Math.round(size * 0.83),
   };
-  const horizontal = {
-    left: Math.round(size * 0.34),
-    top: Math.round(size * 0.38),
-    right: Math.round(size * 0.82),
-    bottom: Math.round(size * 0.64),
-  };
+  const documentRadius = Math.max(1, Math.round(size * 0.06));
 
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
@@ -85,29 +108,89 @@ function createIcon(size) {
         insideRoundedRect(
           x,
           y,
-          vertical.left,
-          vertical.top,
-          vertical.right,
-          vertical.bottom,
-          bandRadius,
+          document.left,
+          document.top,
+          document.right,
+          document.bottom,
+          documentRadius,
         )
       ) {
-        setPixel(x, y, [46, 151, 91]);
+        setPixel(x, y, [255, 255, 255]);
       }
+    }
+  }
 
+  if (size >= 32) {
+    const foldSize = Math.round(size * 0.14);
+    const foldLeft = document.right - foldSize;
+    const foldBottom = document.top + foldSize;
+
+    for (let y = document.top; y <= foldBottom; y += 1) {
+      for (let x = foldLeft; x <= document.right; x += 1) {
+        if (
+          insideTriangle(
+            x,
+            y,
+            { x: foldLeft, y: document.top },
+            { x: document.right, y: document.top },
+            { x: document.right, y: foldBottom },
+          )
+        ) {
+          setPixel(x, y, [219, 237, 249]);
+        }
+      }
+    }
+  }
+
+  const lineLeft = Math.round(size * 0.34);
+  const lineRight = Math.round(size * 0.62);
+  const lineHeight = Math.max(1, Math.round(size * 0.055));
+  const lineRadius = Math.max(1, Math.floor(lineHeight / 2));
+
+  for (const centerY of [Math.round(size * 0.39), Math.round(size * 0.51)]) {
+    const top = centerY - Math.floor(lineHeight / 2);
+    const bottom = top + lineHeight;
+
+    for (let y = top; y <= bottom; y += 1) {
+      for (let x = lineLeft; x <= lineRight; x += 1) {
+        if (insideRoundedRect(x, y, lineLeft, top, lineRight, bottom, lineRadius)) {
+          setPixel(x, y, [40, 120, 189]);
+        }
+      }
+    }
+  }
+
+  const curve = [
+    { x: size * 0.3, y: size * 0.7 },
+    { x: size * 0.43, y: size * 0.69 },
+    { x: size * 0.56, y: size * 0.64 },
+    { x: size * 0.69, y: size * 0.56 },
+  ];
+  const strokeRadius = Math.max(1, size * 0.045);
+
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
       if (
-        insideRoundedRect(
-          x,
-          y,
-          horizontal.left,
-          horizontal.top,
-          horizontal.right,
-          horizontal.bottom,
-          bandRadius,
-        )
+        curve
+          .slice(0, -1)
+          .some(
+            (point, index) =>
+              distanceToSegment(x, y, point, curve[index + 1]) <= strokeRadius,
+          )
       ) {
-        const color = x < Math.round(size * 0.48) ? [244, 181, 57] : [61, 143, 199];
-        setPixel(x, y, color);
+        setPixel(x, y, [40, 166, 106]);
+      }
+    }
+  }
+
+  const arrowTip = { x: size * 0.73, y: size * 0.54 };
+  const arrowTop = { x: size * 0.64, y: size * 0.5 };
+  const arrowBottom = { x: size * 0.67, y: size * 0.61 };
+
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      if (insideTriangle(x, y, arrowTip, arrowTop, arrowBottom)) {
+        setPixel(x, y, [40, 166, 106]);
       }
     }
   }

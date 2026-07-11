@@ -27,13 +27,6 @@ export default defineConfig(async ({ command, mode }) => ({
     headers: {
       "Access-Control-Allow-Origin": "*",
     },
-    proxy: {
-      "/api": {
-        target: "http://127.0.0.1:8787",
-        changeOrigin: true,
-        rewrite: (path: string) => path.replace(/^\/api/, ""),
-      },
-    },
   },
   preview: {
     host: "127.0.0.1",
@@ -41,7 +34,7 @@ export default defineConfig(async ({ command, mode }) => ({
   },
   build: {
     outDir: "dist",
-    sourcemap: true,
+    sourcemap: mode !== "production",
     rollupOptions: {
       input: fileURLToPath(new URL("./taskpane.html", import.meta.url)),
     },

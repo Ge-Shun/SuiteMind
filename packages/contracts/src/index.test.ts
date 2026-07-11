@@ -7,6 +7,16 @@ import {
 } from "./index";
 
 describe("transformRequestSchema", () => {
+  it("requires a question for ask requests", () => {
+    const result = transformRequestSchema.safeParse({
+      operation: "ask",
+      text: "Draft text",
+      instruction: "   ",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("accepts a standard polish request", () => {
     const result = transformRequestSchema.parse({
       operation: "polish",
@@ -25,7 +35,7 @@ describe("transformRequestSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  it("requires an instruction for custom transforms", () => {
+  it("requires an editing instruction for custom transforms", () => {
     const result = transformRequestSchema.safeParse({
       operation: "custom",
       text: "Draft text",

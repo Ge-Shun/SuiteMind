@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const transformOperationSchema = z.enum([
+  "ask",
   "polish",
   "rewrite",
   "translate",
@@ -28,11 +29,17 @@ export const transformRequestSchema = z
       });
     }
 
-    if (value.operation === "custom" && !value.instruction) {
+    if (
+      (value.operation === "ask" || value.operation === "custom") &&
+      !value.instruction
+    ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["instruction"],
-        message: "Enter a custom instruction.",
+        message:
+          value.operation === "ask"
+            ? "Enter a question."
+            : "Enter a custom editing instruction.",
       });
     }
   });

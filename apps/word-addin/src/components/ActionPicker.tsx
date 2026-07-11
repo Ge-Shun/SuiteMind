@@ -1,4 +1,12 @@
-import { Languages, ListCollapse, PenLine, Repeat2, Sparkles } from "lucide-react";
+import {
+  Languages,
+  ListCollapse,
+  MessageCircleQuestion,
+  PenLine,
+  Repeat2,
+  Sparkles,
+  WandSparkles,
+} from "lucide-react";
 import type { ComponentType } from "react";
 
 import type { TransformOperation } from "@suitemind/contracts";
@@ -7,11 +15,13 @@ const actions: Array<{
   operation: TransformOperation;
   icon: ComponentType<{ size?: number; strokeWidth?: number }>;
 }> = [
+  { operation: "ask", icon: MessageCircleQuestion },
   { operation: "polish", icon: Sparkles },
   { operation: "rewrite", icon: Repeat2 },
   { operation: "translate", icon: Languages },
   { operation: "summarize", icon: ListCollapse },
   { operation: "continue", icon: PenLine },
+  { operation: "custom", icon: WandSparkles },
 ];
 
 interface ActionPickerProps {

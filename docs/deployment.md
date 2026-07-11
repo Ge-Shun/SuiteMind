@@ -1,46 +1,53 @@
 # SuiteMind Deployment
 
-SuiteMind can be distributed in two modes:
+SuiteMind is deployed as a static BYOK Word add-in. No SuiteMind API server is
+required. Each user supplies a model provider API key in the task pane.
 
-1. **Static-only BYOK add-in (no SuiteMind relay backend).** Users enter their own
-   Claude, DeepSeek, Gemini, or OpenAI-compatible API settings in the Word add-in.
-2. **Hosted SuiteMind API + add-in.** You run `apps/api` and the add-in calls your
-   API.
+## GitHub Pages
 
-This project now supports mode 1 without adding a relay backend. The add-in page
-still must be hosted on a public HTTPS origin because Office add-ins cannot be
-loaded by normal users from `localhost`.
+The repository includes `.github/workflows/deploy-word-addin-pages.yml`. On a
+push to `main`, it tests, type-checks, builds, generates the production Office
+manifest, and deploys `apps/word-addin/dist/` to GitHub Pages.
 
-## 1. Static-only BYOK deployment, no relay backend
+Production deployment requires a dedicated custom domain so the add-in does not
+share browser storage with other `github.io` project sites. Use a hostname that
+serves only SuiteMind, for example:
 
-Use this when every user brings their own model API key and you do **not** want
-to operate a SuiteMind relay service.
+```text
+word.example.com
+```
 
-### 1.1 Build the Word task pane
+Configure deployment:
+
+1. Add a DNS `CNAME` record from the hostname to
+   `<github-user-or-org>.github.io`.
+2. In **Settings -> Secrets and variables -> Actions -> Variables**, create
+   `SUITEMIND_ADDIN_DOMAIN` with the hostname only, without `https://` or a path.
+3. Enable Pages under **Settings -> Pages -> GitHub Actions**.
+4. In **Settings -> Pages -> Custom domain**, enter the same hostname and enable
+   **Enforce HTTPS** after GitHub verifies the DNS record.
+5. Run the deployment workflow or push to `main`.
+
+The workflow writes the Pages `CNAME` file, builds for the domain root, and
+generates a production manifest pointing to
+`https://<SUITEMIND_ADDIN_DOMAIN>/taskpane.html`. Deployment fails when the
+repository variable is missing, and manifest generation rejects `github.io`
+origins.
+
+## Manual Static Deployment
 
 ```powershell
 npm ci
 npm run build -w @suitemind/word-addin
 ```
 
-Deploy everything in `apps/word-addin/dist/` to a static HTTPS host such as
-Cloudflare Pages, Vercel, Netlify, Azure Static Web Apps, an S3/CloudFront site,
-or any CDN/static web server that serves HTTPS.
+Deploy `apps/word-addin/dist/` to any trusted static HTTPS host.
 
-Confirm these URLs are public and return the expected files:
+Use a dedicated origin that does not host unrelated applications. The manifest
+generator rejects `github.io` project-site origins because they share local
+storage across all project paths owned by the same account.
 
-```text
-https://addin.example.com/taskpane.html
-https://addin.example.com/assets/icon-32.png
-https://addin.example.com/assets/icon-80.png
-```
-
-For the static-only BYOK mode, `VITE_API_BASE_URL` and `VITE_API_TOKEN` are not
-required for direct Claude, DeepSeek, Gemini, or OpenAI-compatible calls. The
-built bundle can still show the `SuiteMind API` option, but direct provider modes
-work from the user-entered settings stored in the add-in.
-
-### 1.2 Generate the production manifest
+Generate the production manifest:
 
 ```powershell
 $env:SUITEMIND_ADDIN_URL="https://addin.example.com"
@@ -49,151 +56,39 @@ $env:SUITEMIND_SUPPORT_URL="https://github.com/Ge-Shun/SuiteMind"
 npm run generate:production-manifest
 ```
 
-The generated file is:
-
-```text
-apps/word-addin/dist/manifest.xml
-```
-
-Validate it before distribution:
+Validate it:
 
 ```powershell
 npx office-addin-manifest validate apps/word-addin/dist/manifest.xml
 ```
 
-The generator rejects non-HTTPS URLs and unresolved placeholders. `SUITEMIND_ADDIN_ORIGIN` can differ from `SUITEMIND_ADDIN_URL` for GitHub Project Pages, where the add-in lives under a repository path but the Office `AppDomain` should remain the site origin.
+## Provider Configuration
 
-### 1.3 User setup after installation
+Users configure one provider after installing the add-in:
 
-In Word, users open the add-in settings and choose one provider:
+| Provider          | Default API base URL                               | Request format                          |
+| ----------------- | -------------------------------------------------- | --------------------------------------- |
+| OpenAI-compatible | `https://api.openai.com/v1`                        | Bearer auth and `/chat/completions` SSE |
+| DeepSeek          | `https://api.deepseek.com`                         | Bearer auth and `/chat/completions` SSE |
+| Claude            | `https://api.anthropic.com`                        | Anthropic Messages SSE                  |
+| Gemini            | `https://generativelanguage.googleapis.com/v1beta` | Gemini streaming content SSE            |
 
-| Provider option   | Default API base URL                               | Request format                                                    |
-| ----------------- | -------------------------------------------------- | ----------------------------------------------------------------- |
-| OpenAI-compatible | `https://api.openai.com/v1`                        | `POST /chat/completions` with Bearer auth and SSE                 |
-| DeepSeek          | `https://api.deepseek.com`                         | `POST /chat/completions` with Bearer auth and SSE                 |
-| Claude            | `https://api.anthropic.com`                        | `POST /v1/messages` with Anthropic browser-access headers and SSE |
-| Gemini            | `https://generativelanguage.googleapis.com/v1beta` | `POST /models/{model}:streamGenerateContent?alt=sse&key=...`      |
+The API key is stored persistently in local storage on the current device until
+the user clears it. It is sent directly to the selected provider or through the
+temporary localhost proxy when direct browser access is blocked.
 
-The API key is saved in the add-in's local storage on the user's device and is
-sent directly from the Office task pane to the selected provider.
+## CORS Limitation
 
-### 1.4 Important limitations without a relay backend
+The add-in first calls OpenAI-compatible providers directly. If the browser or
+Office WebView blocks the request, it automatically retries through the local
+HTTPS proxy at `https://localhost:3001`. The user must run `npm run proxy:local`
+on the same computer while generating, after running `npm run proxy:certs` once
+to install the trusted localhost certificate. Before starting the proxy for a
+deployed add-in, set `SUITEMIND_PROXY_ALLOWED_ORIGINS` to the add-in's exact
+HTTPS origin, for example `https://word.example.com`. Claude and Gemini keep
+their provider-specific direct browser integrations.
 
-Because there is no relay backend, every selected provider must allow browser /
-Office WebView requests from your add-in origin with CORS. If a provider blocks
-browser CORS, the user can enter a valid API key and still see `Failed to fetch`
-or a CORS error. In that case, the only reliable fix is either choosing a
-provider/API gateway that supports browser CORS or adding a relay backend later.
-
-Do not promise that every vendor endpoint will work in every Office WebView. Test
-each target provider with the production HTTPS origin before publishing broadly.
-
-## 2. Free GitHub Pages deployment
-
-GitHub Pages is the best zero-cost option for the static-only BYOK add-in when
-the repository is public. GitHub Actions is also free for public repositories;
-private repositories can require a paid plan or consume included Actions minutes.
-
-This repository includes `.github/workflows/deploy-word-addin-pages.yml`, which
-uses Node.js 24, builds the Word add-in, generates `dist/manifest.xml`, and deploys
-`apps/word-addin/dist/` to GitHub Pages. The workflow is configured for GitHub
-Project Pages at:
-
-```text
-https://<github-user-or-org>.github.io/<repository-name>/
-```
-
-The workflow sets `VITE_ADDIN_BASE_PATH` to `/<repository-name>/` so Vite emits
-asset URLs that work under the GitHub Pages project subpath. It also generates
-the Office manifest with:
-
-```text
-SourceLocation = https://<github-user-or-org>.github.io/<repository-name>/taskpane.html
-AppDomain      = https://<github-user-or-org>.github.io
-```
-
-To enable it in GitHub:
-
-1. Push this repository to GitHub.
-2. Open **Settings → Pages**.
-3. Set **Build and deployment → Source** to **GitHub Actions** when the dropdown is available. The workflow also passes `enablement: true` to `actions/configure-pages` so a first run can create/enable the Pages site automatically.
-4. Run **Actions → Deploy Word Add-in to GitHub Pages → Run workflow**, or push
-   to `main`.
-5. Download `manifest.xml` from the deployed site or from the workflow artifact
-   output path `apps/word-addin/dist/manifest.xml`.
-
-If you use a custom domain such as `https://addin.example.com`, update the
-workflow env values to:
-
-```yaml
-VITE_ADDIN_BASE_PATH: /
-SUITEMIND_ADDIN_URL: https://addin.example.com
-SUITEMIND_ADDIN_ORIGIN: https://addin.example.com
-```
-
-If GitHub reports merge conflicts around the Pages workflow or this deployment
-section, keep the version that uses Node.js 24, `actions/configure-pages@v6`, and
-`enablement: true`; the older Node.js 20 / `configure-pages@v5` version can fail
-on current GitHub-hosted runners or on repositories where Pages has not been
-created yet.
-
-## 3. Optional hosted SuiteMind API deployment
-
-Use this mode only if you decide to operate your own SuiteMind API service.
-
-Build and verify the server:
-
-```powershell
-npm ci
-npm run build -w @suitemind/api
-```
-
-Set production environment variables:
-
-```dotenv
-NODE_ENV=production
-HOST=0.0.0.0
-PORT=8787
-CORS_ORIGINS=https://addin.example.com
-AI_PROVIDER=openai-compatible
-AI_BASE_URL=https://provider.example/v1
-AI_API_KEY=server-side-provider-key
-AI_MODEL=model-id
-API_BEARER_TOKEN=at-least-16-random-characters
-MAX_INPUT_CHARS=10000
-MAX_OUTPUT_CHARS=20000
-REQUEST_TIMEOUT_MS=60000
-RATE_LIMIT_MAX=30
-RATE_LIMIT_WINDOW_MS=60000
-MAX_CONCURRENT_REQUESTS=4
-TRUST_PROXY=true
-```
-
-Start the compiled server:
-
-```powershell
-npm run start -w @suitemind/api
-```
-
-The mock provider is rejected automatically when `NODE_ENV=production` unless
-`ALLOW_MOCK_PROVIDER=true` is explicitly set.
-
-The built-in limiter is process-local. A multi-instance deployment should use an
-external shared rate-limit store or enforce limits at the API gateway.
-
-When building the add-in for a hosted SuiteMind API, set the public API URL:
-
-```powershell
-$env:VITE_API_BASE_URL="https://api.example.com"
-npm run build -w @suitemind/word-addin
-```
-
-`VITE_API_TOKEN` is suitable only for a private single-user deployment because
-all Vite variables are visible in the browser bundle. A public multi-user
-deployment should issue short-lived user sessions through a trusted backend or
-reverse proxy instead of embedding a shared secret.
-
-## 4. Release checks
+## Release Checks
 
 ```powershell
 npm run format:check
@@ -203,12 +98,11 @@ npm run build
 npm run validate:manifest -w @suitemind/word-addin
 ```
 
-After automated checks, sideload the production manifest in Word and verify:
+Also validate in real Word:
 
-- task pane loading from the public HTTPS origin;
-- provider settings for Claude, DeepSeek, Gemini, and OpenAI-compatible APIs;
-- selection read and tracked-range replacement;
-- insert-below paragraph styling;
-- native Word undo;
-- provider authentication, CORS, quota, and rate-limit errors;
-- Chinese, English, and mixed-language selections.
+- provider authentication and CORS;
+- question answers, copy, and insert-below;
+- rewrite, polish, translate, summarize, continue, and custom edit;
+- tracked replacement and stale-source rejection;
+- paragraph style inheritance and native Undo;
+- Chinese, English, and mixed-language text.

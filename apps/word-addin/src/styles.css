@@ -312,6 +312,25 @@ textarea:focus-visible {
   line-height: 1.4;
 }
 
+.clear-key-button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #d1a5a5;
+  border-radius: 6px;
+  color: #812f2f;
+  background: #fff7f7;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.clear-key-button:hover:not(:disabled) {
+  border-color: #b76b6b;
+  background: #fff0f0;
+}
+
 .primary-button,
 .apply-button,
 .secondary-button,
@@ -395,6 +414,12 @@ textarea:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.answer-label {
+  color: #27323b;
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .segmented-control {

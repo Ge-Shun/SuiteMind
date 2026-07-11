@@ -1,89 +1,115 @@
 # SuiteMind
 
-SuiteMind is an AI workspace for Microsoft Office. The current release focuses
-on Microsoft Word and provides controlled, reviewable AI-assisted editing
-inside the document.
+SuiteMind is a static BYOK (Bring Your Own Key) AI add-in for Microsoft Word.
+Users connect their own model provider, review every generated result, and decide
+when document content may be changed.
 
-## Current Focus
+## Current Scope
 
-The Word MVP will support this workflow:
+The current release focuses on Word:
 
-1. Read the current Word selection, or the paragraph at the cursor.
-2. Send the text and an operation to the SuiteMind API.
-3. Stream the generated result into the task pane.
-4. Preview the change before modifying the document.
-5. Replace the tracked source or insert the result below it.
+1. Select text, or place the cursor in a non-empty paragraph.
+2. Ask a question or choose an editing action.
+3. Stream the result directly from the selected AI provider.
+4. Review the answer or text change in the task pane.
+5. Copy an answer, replace the tracked source, or insert the result below it.
 
-Initial operations:
+Available actions:
 
+- Ask a question about the selected text
 - Polish
 - Rewrite
 - Translate
 - Summarize
 - Continue writing
-- Custom instruction
+- Custom edit
 
-Excel and PowerPoint are intentionally out of scope until the Word workflow is
-stable.
+Excel and PowerPoint remain out of scope until the Word workflow is stable.
+
+## BYOK Architecture
+
+```text
+Microsoft Word
+  -> SuiteMind task pane
+  -> user's selected model provider
+```
+
+SuiteMind does not provide a shared model API key or relay server. Users enter
+their own provider URL, API key, and model. Requests are sent directly from the
+Office task pane to OpenAI-compatible, DeepSeek, Claude, or Gemini endpoints.
+
+The API key is stored persistently in the add-in's local storage on the current
+device until the user clears it in Model settings. It is not committed to the
+repository and is not sent to a SuiteMind server. Production hosting requires a
+dedicated HTTPS domain so unrelated GitHub Pages projects cannot share the
+add-in's browser storage.
+
+Direct provider calls require browser/Office WebView CORS support. A valid key
+can still fail when a provider blocks cross-origin requests. For an
+OpenAI-compatible provider that blocks CORS, run the temporary local proxy:
+
+```powershell
+npm run proxy:certs
+npm run proxy:local
+```
+
+For a deployed add-in, set `SUITEMIND_PROXY_ALLOWED_ORIGINS` to its exact HTTPS
+origin before starting the proxy.
+
+The add-in first tries the provider directly and automatically falls back to
+`https://localhost:3001` when direct browser access fails. The proxy runs only
+on the current computer, accepts requests only from configured origins, and does
+not persist or log the API key. The certificate installation command is required
+only once per computer.
 
 ## Product Principles
 
-- User-controlled writes: AI output is previewed before it changes a document.
-- Provider-neutral API: the add-in is not coupled to one model vendor.
-- Secure credentials: model API keys stay on the server, never in the add-in.
-- Minimal document access: read only the content required for the current task.
-- Reversible changes: use Word-native editing so users can undo applied changes.
+- Explicit writes: generated content never changes Word before confirmation.
+- Text-only AI boundary: model output is never executed as JavaScript or Office.js.
+- Minimal access: only the current selection or paragraph is read.
+- Stale-source protection: changed source text is rejected before writing.
+- Reversible edits: Word-native writes remain undoable.
+- User-owned credentials and model usage.
 
 ## Repository Layout
 
 ```text
 SuiteMind/
 |-- apps/
-|   |-- word-addin/       # Word task pane and Office.js integration
-|   `-- api/              # AI gateway and streaming API
+|   `-- word-addin/       # React task pane and Office.js integration
 |-- packages/
-|   `-- contracts/        # Shared request, response, and event schemas
+|   `-- contracts/        # Shared request and operation schemas
 |-- docs/
+|   |-- development.md
+|   |-- deployment.md
 |   `-- word-plan.md
-|-- package.json
-`-- README.md
+|-- scripts/
+`-- package.json
 ```
 
-See [docs/word-plan.md](docs/word-plan.md) for the product plan and
-[docs/development.md](docs/development.md) for setup, configuration, and Word
-sideloading. Production hosting and manifest generation are covered in
-[docs/deployment.md](docs/deployment.md).
-
-## Status
-
-The Word MVP is implemented with:
-
-- An Office.js Word adapter with tracked-range and stale-content protection.
-- A browser mock adapter for development without launching Word.
-- Streaming AI output over server-sent events.
-- Diff, before, and after review modes.
-- Replace and insert-below actions.
-- Mock and OpenAI-compatible server-side providers.
-- Optional API authentication, rate limiting, and output-size limits.
-- Unit tests, production builds, and a validated Office manifest.
-
-Excel and PowerPoint remain out of scope for this release.
-
 ## Quick Start
+
+Requirements: Node.js 22.12 or newer and npm 10 or newer.
 
 ```powershell
 npm install
 npm run dev
 ```
 
-Open the browser development view at:
+Open the browser UI at:
 
 ```text
 https://localhost:3000/taskpane.html?mockOffice=1
 ```
+
+The browser view mocks Word selection and writing. Enter a provider API key in
+Model settings to run an AI request.
 
 To sideload into Word desktop:
 
 ```powershell
 npm run sideload:word
 ```
+
+See [docs/development.md](docs/development.md) for local development and
+[docs/deployment.md](docs/deployment.md) for GitHub Pages deployment.
