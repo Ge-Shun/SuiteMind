@@ -38,31 +38,17 @@ jobs:
       - name: Typecheck Word add-in
         run: npm run typecheck --workspace @suitemind/word-addin
 
-      - name: Require dedicated add-in domain
+      - name: Build Word add-in for GitHub Project Pages
         env:
-          SUITEMIND_ADDIN_DOMAIN: ${{ vars.SUITEMIND_ADDIN_DOMAIN }}
-        run: |
-          if [ -z "$SUITEMIND_ADDIN_DOMAIN" ]; then
-            echo "Set the SUITEMIND_ADDIN_DOMAIN repository variable to a dedicated hostname, for example word.example.com."
-            exit 1
-          fi
-
-      - name: Build Word add-in for custom domain
-        env:
-          VITE_ADDIN_BASE_PATH: /
+          VITE_ADDIN_BASE_PATH: /${{ github.event.repository.name }}/
         run: npm run build --workspace @suitemind/word-addin
 
       - name: Generate production manifest
         env:
-          SUITEMIND_ADDIN_URL: https://${{ vars.SUITEMIND_ADDIN_DOMAIN }}
-          SUITEMIND_ADDIN_ORIGIN: https://${{ vars.SUITEMIND_ADDIN_DOMAIN }}
+          SUITEMIND_ADDIN_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+          SUITEMIND_ADDIN_ORIGIN: https://${{ github.repository_owner }}.github.io
           SUITEMIND_SUPPORT_URL: https://github.com/${{ github.repository }}
         run: npm run generate:production-manifest
-
-      - name: Configure custom domain artifact
-        env:
-          SUITEMIND_ADDIN_DOMAIN: ${{ vars.SUITEMIND_ADDIN_DOMAIN }}
-        run: printf '%s\n' "$SUITEMIND_ADDIN_DOMAIN" > apps/word-addin/dist/CNAME
 
       # enablement:true lets the first run create/enable the Pages site automatically.
       - name: Configure GitHub Pages

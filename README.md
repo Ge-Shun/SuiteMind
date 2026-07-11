@@ -38,11 +38,10 @@ SuiteMind does not provide a shared model API key or relay server. Users enter
 their own provider URL, API key, and model. Requests are sent directly from the
 Office task pane to OpenAI-compatible, DeepSeek, Claude, or Gemini endpoints.
 
-The API key is stored persistently in the add-in's local storage on the current
-device until the user clears it in Model settings. It is not committed to the
-repository and is not sent to a SuiteMind server. Production hosting requires a
-dedicated HTTPS domain so unrelated GitHub Pages projects cannot share the
-add-in's browser storage.
+The API key is kept only in the current task pane's memory and is removed when
+the pane reloads or closes. Provider choice, API URL, and model can be saved, but
+the key is never written to local storage, committed to the repository, or sent
+to a SuiteMind server.
 
 Direct provider calls require browser/Office WebView CORS support. A valid key
 can still fail when a provider blocks cross-origin requests. For an
@@ -53,8 +52,8 @@ npm run proxy:certs
 npm run proxy:local
 ```
 
-For a deployed add-in, set `SUITEMIND_PROXY_ALLOWED_ORIGINS` to its exact HTTPS
-origin before starting the proxy.
+For the GitHub Pages deployment, set `SUITEMIND_PROXY_ALLOWED_ORIGINS` to
+`https://ge-shun.github.io` before starting the proxy.
 
 The add-in first tries the provider directly and automatically falls back to
 `https://localhost:3001` when direct browser access fails. The proxy runs only

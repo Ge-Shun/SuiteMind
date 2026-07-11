@@ -72,7 +72,7 @@ describe("App language switcher", () => {
       JSON.stringify({
         mode: "openai-compatible",
         baseUrl: "https://api.example.com/v1",
-        apiKey: "saved-key",
+        apiKey: "legacy-saved-key",
         model: "example-model",
       }),
     );
@@ -82,28 +82,33 @@ describe("App language switcher", () => {
     await waitFor(() => expect(generateButton).toBeEnabled());
     fireEvent.click(generateButton);
 
-    expect(screen.getByRole("status")).toHaveTextContent("请先输入问题。");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "请在模型配置中填写完整的接口地址、API Key 和模型。",
+    );
 
     fireEvent.click(screen.getByRole("switch", { name: "切换到英文" }));
 
-    expect(screen.getByRole("status")).toHaveTextContent("Enter a question first.");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Complete the API base URL, API key, and model in Model settings.",
+    );
   });
 
-  it("persists the API key until the user clears it", async () => {
+  it("keeps the API key only in the current task pane session", async () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Model settings" }));
 
     const apiKeyInput = screen.getByLabelText("API key");
-    fireEvent.change(apiKeyInput, { target: { value: "persistent-user-key" } });
+    fireEvent.change(apiKeyInput, { target: { value: "session-user-key" } });
 
     await waitFor(() => {
       const saved = JSON.parse(
         window.localStorage.getItem(PROVIDER_SETTINGS_STORAGE_KEY) ?? "{}",
       ) as { apiKey?: string };
-      expect(saved.apiKey).toBe("persistent-user-key");
+      expect(saved.apiKey).toBeUndefined();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Clear saved API key" }));
+    expect(apiKeyInput).toHaveValue("session-user-key");
+    fireEvent.click(screen.getByRole("button", { name: "Clear API key" }));
 
     expect(apiKeyInput).toHaveValue("");
   });

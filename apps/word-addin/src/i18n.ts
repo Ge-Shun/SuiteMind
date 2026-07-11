@@ -125,7 +125,7 @@ export const translations: Record<UiLanguage, AppStrings> = {
       replacing: "Replacing selection...",
       inserting: "Inserting result...",
       answerCopied: "Answer copied to the clipboard.",
-      apiKeyCleared: "The saved API key was cleared.",
+      apiKeyCleared: "The API key was cleared from this session.",
       mockReplaced: "Selection replaced in the browser preview.",
       mockInserted: "Result inserted in the browser preview.",
       wordReplaced: "Selection replaced. Word Undo can restore it.",
@@ -185,9 +185,9 @@ export const translations: Record<UiLanguage, AppStrings> = {
     apiKeyPlaceholder: "sk-...",
     model: "Model",
     customProvider: "Custom API",
-    clearApiKey: "Clear saved API key",
+    clearApiKey: "Clear API key",
     apiKeyStorageNotice:
-      "Your API key is stored persistently in this add-in on this device until you clear it. It is sent to the selected provider directly or through the temporary local proxy, and is never sent to a SuiteMind server.",
+      "Your API key stays only in this task pane session and is removed when the pane reloads or closes. It is sent to the selected provider directly or through the temporary local proxy, and is never sent to a SuiteMind server.",
     characterCount: (count) => `${count.toLocaleString("en")} chars`,
   },
   "zh-CN": {
@@ -223,7 +223,7 @@ export const translations: Record<UiLanguage, AppStrings> = {
       replacing: "正在替换选区...",
       inserting: "正在插入结果...",
       answerCopied: "回答已复制到剪贴板。",
-      apiKeyCleared: "已清除保存的 API Key。",
+      apiKeyCleared: "已从当前会话中清除 API Key。",
       mockReplaced: "已在浏览器预览中替换选区。",
       mockInserted: "已在浏览器预览中插入结果。",
       wordReplaced: "已替换选区，可使用 Word 撤销恢复。",
@@ -280,9 +280,9 @@ export const translations: Record<UiLanguage, AppStrings> = {
     apiKeyPlaceholder: "sk-...",
     model: "模型",
     customProvider: "自定义 API",
-    clearApiKey: "清除已保存的 API Key",
+    clearApiKey: "清除 API Key",
     apiKeyStorageNotice:
-      "API Key 会持久保存在此插件当前设备中，直到你主动清除。Key 会直接发送给模型服务商，或经临时本地代理转发，不会发送到 SuiteMind 服务器。",
+      "API Key 仅保留在当前任务窗格会话中，刷新或关闭后会自动清除。Key 会直接发送给模型服务商，或经临时本地代理转发，不会发送到 SuiteMind 服务器。",
     characterCount: (count) => `${count.toLocaleString("zh-CN")} 字符`,
   },
 };

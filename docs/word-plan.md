@@ -44,7 +44,8 @@ Ask results do not offer source replacement by default.
 - `rewrite` returns fresh wording while preserving meaning and key details.
 - `custom` applies an explicit editing instruction.
 - All provider output is treated as text, never executable Office.js.
-- Provider keys are stored persistently on the user's device until cleared.
+- Provider keys stay only in the current task pane session and are never written
+  to persistent browser storage.
 
 ## Word Safety
 
@@ -92,6 +93,8 @@ Deferred:
 - Rewrite and other edit operations produce reviewable text changes.
 - No document content changes before confirmation.
 - Stale content cannot be overwritten silently.
-- The API key persists across add-in sessions and can be explicitly cleared.
-- Production documentation explains the local-storage and CORS trust boundary.
+- The API key remains only in the current task pane session and can be explicitly
+  cleared.
+- Production documentation explains the in-memory credential and CORS trust
+  boundary.
 - Core workflows pass in Word for Windows and Word on the web.

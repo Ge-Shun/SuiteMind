@@ -13,22 +13,25 @@ suggested mitigation. Never include a real provider key or private document.
 
 SuiteMind is a static BYOK add-in. The user enters a provider API key, which is:
 
-- stored persistently in the add-in origin's local storage until manually cleared;
+- kept only in the current task pane's memory and removed on reload or close;
 - sent directly to the selected model provider over HTTPS, or through the
   temporary localhost proxy when direct browser access is blocked;
 - never sent to a SuiteMind relay server;
 - never included in source control or build-time environment variables.
 
-Browser storage is not a secure operating-system credential vault. Any script
-running on the same origin can potentially access it. Production deployment
-requires a dedicated custom domain and rejects `github.io` project-site origins.
-The dedicated origin must not host unrelated applications. Users should still
-clear the key on shared devices.
+Provider choice, API URL, and model may be stored in local storage, but the API
+key is deliberately excluded. Loading a legacy settings record removes any key
+that an earlier version persisted. GitHub Project Pages share an origin across
+repositories owned by the same account, so they remain a weaker isolation
+boundary than a dedicated domain; keeping the key only in memory prevents
+passive recovery from persistent browser storage. Users should still close the
+task pane on shared devices and avoid running untrusted pages under the same
+GitHub Pages origin while entering a key.
 
 ## Deployment Responsibilities
 
 - Serve the task pane only from HTTPS.
-- Use a dedicated origin that hosts only the SuiteMind task pane.
+- Prefer a dedicated origin for stronger browser isolation when one is available.
 - Protect the repository and GitHub Pages deployment workflow.
 - Review dependency updates and avoid untrusted third-party scripts.
 - Keep production source maps disabled.

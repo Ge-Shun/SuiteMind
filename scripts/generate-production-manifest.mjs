@@ -24,19 +24,6 @@ function normalizeBaseUrl(name, value) {
   return requireHttpsUrl(name, value).toString().replace(/\/$/, "");
 }
 
-function rejectSharedGithubPagesOrigin(name, value) {
-  const url = requireHttpsUrl(name, value);
-  const hostname = url.hostname.toLowerCase();
-
-  if (hostname === "github.io" || hostname.endsWith(".github.io")) {
-    throw new Error(
-      `${name} must use a dedicated custom domain; github.io project sites share local storage across the owner origin.`,
-    );
-  }
-
-  return url;
-}
-
 function escapeXml(value) {
   return value.replace(
     /[<>&'"]/g,
@@ -51,12 +38,12 @@ function escapeXml(value) {
   );
 }
 
-const addinUrl = rejectSharedGithubPagesOrigin(
+const addinUrl = requireHttpsUrl(
   "SUITEMIND_ADDIN_URL",
   process.env.SUITEMIND_ADDIN_URL,
 );
 const addinBaseUrl = addinUrl.toString().replace(/\/$/, "");
-const addinOrigin = rejectSharedGithubPagesOrigin(
+const addinOrigin = requireHttpsUrl(
   "SUITEMIND_ADDIN_ORIGIN",
   process.env.SUITEMIND_ADDIN_ORIGIN ?? addinBaseUrl,
 ).origin;

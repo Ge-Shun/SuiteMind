@@ -40,8 +40,10 @@ Provider settings are entered at runtime, not in `.env` files:
 - API key
 - model
 
-The complete settings, including the key, are stored in local storage until the
-user clicks **Clear saved API key**.
+Provider, API base URL, and model are stored in local storage. The API key stays
+only in the current task pane's memory and must be entered again after a reload
+or restart. Loading settings from an older version removes any previously saved
+key.
 
 ## Local Provider Proxy
 
@@ -56,7 +58,7 @@ npm run proxy:local
 For a deployed add-in, allow its exact HTTPS origin when starting the proxy:
 
 ```powershell
-$env:SUITEMIND_PROXY_ALLOWED_ORIGINS="https://word.example.com"
+$env:SUITEMIND_PROXY_ALLOWED_ORIGINS="https://ge-shun.github.io"
 npm run proxy:local
 ```
 
@@ -98,8 +100,8 @@ npm run validate:manifest -w @suitemind/word-addin
 ## Security Boundary
 
 - Document content is sent only after the user starts an action.
-- Provider credentials are stored locally and sent directly to the provider or
-  through the temporary localhost proxy.
+- Provider credentials are held only in task pane memory and sent directly to
+  the provider or through the temporary localhost proxy.
 - No SuiteMind backend receives credentials or document text.
 - Model output is text only.
 - No Word mutation occurs before explicit confirmation.

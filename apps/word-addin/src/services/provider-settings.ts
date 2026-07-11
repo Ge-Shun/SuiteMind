@@ -7,6 +7,8 @@ export interface ProviderSettings {
   model: string;
 }
 
+type PersistedProviderSettings = Omit<ProviderSettings, "apiKey">;
+
 export const PROVIDER_SETTINGS_STORAGE_KEY = "suitemind-provider-settings";
 
 export const providerModes = [
@@ -83,22 +85,40 @@ export function loadProviderSettings(): ProviderSettings {
 
     const parsed = JSON.parse(savedSettings) as Partial<ProviderSettings>;
     const mode = isProviderMode(parsed.mode) ? parsed.mode : "openai-compatible";
-
-    return {
-      ...getDefaultProviderSettings(mode),
-      ...parsed,
+    const defaults = getDefaultProviderSettings(mode);
+    const settings = {
       mode,
+      baseUrl: typeof parsed.baseUrl === "string" ? parsed.baseUrl : defaults.baseUrl,
+      apiKey: "",
+      model: typeof parsed.model === "string" ? parsed.model : defaults.model,
     };
+
+    if (Object.hasOwn(parsed, "apiKey")) {
+      persistProviderSettings(settings);
+    }
+
+    return settings;
   } catch {
     return defaultProviderSettings;
   }
 }
 
 export function saveProviderSettings(settings: ProviderSettings): void {
+  persistProviderSettings(settings);
+}
+
+function persistProviderSettings(settings: ProviderSettings): void {
   try {
+    const normalized = normalizeProviderSettings(settings);
+    const persisted: PersistedProviderSettings = {
+      mode: normalized.mode,
+      baseUrl: normalized.baseUrl,
+      model: normalized.model,
+    };
+
     window.localStorage.setItem(
       PROVIDER_SETTINGS_STORAGE_KEY,
-      JSON.stringify(normalizeProviderSettings(settings)),
+      JSON.stringify(persisted),
     );
   } catch {
     // The current session still keeps the settings when storage is unavailable.
