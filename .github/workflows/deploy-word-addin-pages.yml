@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # GitHub Actions runners are moving off Node 20; use Node 24 for npm scripts.
       - name: Setup Node.js
