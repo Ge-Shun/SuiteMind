@@ -93,8 +93,13 @@ function normalizeTarget(value) {
     throw new Error("The target provider URL must use HTTPS.");
   }
 
-  if (!target.pathname.endsWith("/chat/completions")) {
-    throw new Error("Only OpenAI-compatible chat completions endpoints are allowed.");
+  if (
+    !target.pathname.endsWith("/chat/completions") &&
+    !target.pathname.endsWith("/responses")
+  ) {
+    throw new Error(
+      "Only OpenAI-compatible chat completions or OpenAI Responses endpoints are allowed.",
+    );
   }
 
   return target;

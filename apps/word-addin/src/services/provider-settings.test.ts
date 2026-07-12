@@ -53,4 +53,20 @@ describe("provider settings storage", () => {
       model: "deepseek-chat",
     });
   });
+
+  it("migrates the previous official OpenAI default to Responses", () => {
+    window.localStorage.setItem(
+      PROVIDER_SETTINGS_STORAGE_KEY,
+      JSON.stringify({
+        mode: "openai-compatible",
+        baseUrl: "https://api.openai.com/v1",
+        model: "gpt-4o-mini",
+      }),
+    );
+
+    expect(loadProviderSettings()).toMatchObject({ mode: "openai", apiKey: "" });
+    expect(
+      JSON.parse(window.localStorage.getItem(PROVIDER_SETTINGS_STORAGE_KEY) ?? "{}"),
+    ).toMatchObject({ mode: "openai" });
+  });
 });

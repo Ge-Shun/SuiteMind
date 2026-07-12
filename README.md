@@ -35,8 +35,9 @@ Microsoft Word
 ```
 
 SuiteMind does not provide a shared model API key or relay server. Users enter
-their own provider URL, API key, and model. Requests are sent directly from the
-Office task pane to OpenAI-compatible, DeepSeek, Claude, or Gemini endpoints.
+their own provider URL, API key, and model. Official OpenAI uses the Responses
+API; OpenAI-compatible, DeepSeek, Claude, and Gemini providers are called
+directly from the Office task pane through their respective APIs.
 
 The API key is kept only in the current task pane's memory and is removed when
 the pane reloads or closes. Provider choice, API URL, and model can be saved, but
@@ -45,7 +46,8 @@ to a SuiteMind server.
 
 Direct provider calls require browser/Office WebView CORS support. A valid key
 can still fail when a provider blocks cross-origin requests. For an
-OpenAI-compatible provider that blocks CORS, run the temporary local proxy:
+An OpenAI or OpenAI-compatible provider that blocks CORS can use the temporary
+local proxy:
 
 ```powershell
 npm run proxy:certs

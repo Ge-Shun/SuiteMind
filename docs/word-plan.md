@@ -62,7 +62,8 @@ Included:
 
 - Word task pane and Office.js integration.
 - Ask, polish, rewrite, translate, summarize, continue, and custom edit.
-- OpenAI-compatible, DeepSeek, Claude, and Gemini direct providers.
+- OpenAI Responses, OpenAI-compatible Chat Completions, DeepSeek, Claude, and
+  Gemini direct providers.
 - Persistent runtime provider settings and explicit Key clearing.
 - Streaming generation, cancellation, review, copy, replace, and insert.
 - Chinese and English UI.

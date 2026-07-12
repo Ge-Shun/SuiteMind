@@ -39,10 +39,10 @@ GitHub Pages origin while entering a key.
 - Explain when users must run the temporary local provider proxy.
 - Treat model output as text and require confirmation before Word writes.
 
-The local proxy listens on `localhost`, accepts only HTTPS OpenAI-compatible
-`/chat/completions` targets, allows only explicitly configured HTTPS origins,
-and keeps request data in memory only. It must not log authorization headers,
-document content, or provider responses.
+The local proxy listens on `localhost`, accepts only HTTPS OpenAI
+`/responses` or OpenAI-compatible `/chat/completions` targets, allows only
+explicitly configured HTTPS origins, and keeps request data in memory only. It
+must not log authorization headers, document content, or provider responses.
 
 ## Document Safety
 

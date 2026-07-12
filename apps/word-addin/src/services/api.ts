@@ -305,6 +305,84 @@ async function transformWithOpenAiCompatible(
   });
 }
 
+async function transformWithOpenAiResponses(
+  request: TransformRequest,
+  callbacks: TransformCallbacks,
+  settings: ProviderSettings,
+): Promise<void> {
+  const normalized = normalizeProviderSettings(settings);
+
+  if (!normalized.baseUrl || !normalized.apiKey || !normalized.model) {
+    throw new SuiteMindApiError(
+      "PROVIDER_SETTINGS_REQUIRED",
+      "Enter an OpenAI API base URL, API key, and model in Provider settings.",
+      false,
+    );
+  }
+
+  const prompt = buildPromptMessages(request);
+  const response = await fetchOpenAiCompatible(
+    `${normalized.baseUrl}/responses`,
+    normalized.apiKey,
+    JSON.stringify({
+      model: normalized.model,
+      instructions: prompt.system,
+      input: prompt.user,
+      stream: true,
+      // Word selections are sensitive document content, so do not retain server-side state.
+      store: false,
+    }),
+    callbacks.signal,
+  );
+
+  await readProviderStream(response, callbacks, (block) => {
+    const data = readSseData(block);
+
+    if (!data) return false;
+
+    const parsed = JSON.parse(data) as {
+      type?: string;
+      delta?: string;
+      response?: {
+        id?: string;
+        model?: string;
+        error?: { code?: string; message?: string };
+      };
+      error?: { code?: string; message?: string };
+    };
+
+    if (parsed.type === "response.output_text.delta" && parsed.delta) {
+      callbacks.onDelta(parsed.delta);
+      return false;
+    }
+
+    if (
+      parsed.type === "error" ||
+      parsed.type === "response.failed" ||
+      parsed.type === "response.incomplete"
+    ) {
+      throw new SuiteMindApiError(
+        parsed.error?.code ?? parsed.response?.error?.code ?? "RESPONSES_ERROR",
+        parsed.error?.message ??
+          parsed.response?.error?.message ??
+          "The OpenAI Responses API returned an error.",
+        true,
+      );
+    }
+
+    if (parsed.type === "response.completed") {
+      callbacks.onDone?.({
+        type: "done",
+        requestId: parsed.response?.id ?? crypto.randomUUID(),
+        model: parsed.response?.model ?? normalized.model,
+      });
+      return true;
+    }
+
+    return false;
+  });
+}
+
 async function transformWithClaude(
   request: TransformRequest,
   callbacks: TransformCallbacks,
@@ -461,6 +539,10 @@ async function transformWithDirectProvider(
 
   if (settings.mode === "gemini") {
     return transformWithGemini(request, callbacks, settings);
+  }
+
+  if (settings.mode === "openai") {
+    return transformWithOpenAiResponses(request, callbacks, settings);
   }
 
   return transformWithOpenAiCompatible(request, callbacks, settings);

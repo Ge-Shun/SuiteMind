@@ -47,8 +47,8 @@ key.
 
 ## Local Provider Proxy
 
-OpenAI-compatible providers that block browser CORS can be used through the
-temporary local HTTPS proxy:
+OpenAI Responses and OpenAI-compatible providers that block browser CORS can be
+used through the temporary local HTTPS proxy:
 
 ```powershell
 npm run proxy:certs
@@ -71,9 +71,10 @@ https://localhost:3001/api/provider/chat/completions
 
 The proxy uses the trusted Office localhost certificate, listens only on the
 current computer, accepts requests only from its configured HTTPS origins,
-accepts only HTTPS `/chat/completions` targets, streams the provider response,
-and does not persist or log the API key or document text. Local development
-origins are allowed by default. Run `npm run proxy:certs` only once per computer.
+accepts only HTTPS `/responses` or `/chat/completions` targets, streams the
+provider response, and does not persist or log the API key or document text.
+Local development origins are allowed by default. Run `npm run proxy:certs` only
+once per computer.
 
 ## Word Desktop Sideloading
 

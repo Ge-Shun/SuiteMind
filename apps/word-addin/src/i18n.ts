@@ -175,6 +175,7 @@ export const translations: Record<UiLanguage, AppStrings> = {
     providerSettings: "Model settings",
     providerMode: "Provider",
     providerModes: {
+      openai: "OpenAI (Responses)",
       "openai-compatible": "OpenAI-compatible",
       deepseek: "DeepSeek",
       claude: "Claude",
@@ -270,6 +271,7 @@ export const translations: Record<UiLanguage, AppStrings> = {
     providerSettings: "模型配置",
     providerMode: "服务提供方",
     providerModes: {
+      openai: "OpenAI（Responses）",
       "openai-compatible": "OpenAI 兼容接口",
       deepseek: "DeepSeek",
       claude: "Claude",

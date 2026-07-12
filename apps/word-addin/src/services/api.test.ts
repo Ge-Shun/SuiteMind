@@ -62,6 +62,90 @@ describe("direct provider transforms", () => {
     );
   });
 
+  it("uses OpenAI Responses by default and streams typed text events", async () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            'event: response.output_text.delta\ndata: {"type":"response.output_text.delta","delta":"Hello"}\n\n' +
+              'event: response.completed\ndata: {"type":"response.completed","response":{"id":"resp_123","model":"gpt-4o-mini"}}\n\n',
+          ),
+        );
+        controller.close();
+      },
+    });
+    const fetch = vi.fn().mockResolvedValue(new Response(stream, { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+    const deltas: string[] = [];
+
+    await transformText(
+      { operation: "polish", text: "Draft", instruction: "" },
+      {
+        signal: new AbortController().signal,
+        onDelta: (text) => deltas.push(text),
+      },
+      {
+        providerSettings: {
+          mode: "openai",
+          baseUrl: "https://api.openai.com/v1",
+          apiKey: "user-key",
+          model: "gpt-4o-mini",
+        },
+      },
+    );
+
+    expect(deltas).toEqual(["Hello"]);
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/responses",
+      expect.objectContaining({
+        body: expect.stringContaining('"store":false'),
+        headers: expect.objectContaining({ Authorization: "Bearer user-key" }),
+      }),
+    );
+  });
+
+  it("retries OpenAI Responses through the local proxy when direct access fails", async () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            'data: {"type":"response.completed","response":{"id":"resp_123"}}\n\n',
+          ),
+        );
+        controller.close();
+      },
+    });
+    const fetch = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValueOnce(new Response(stream, { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+    vi.stubGlobal("crypto", { randomUUID: () => "request-id" });
+
+    await transformText(
+      { operation: "polish", text: "Draft", instruction: "" },
+      { signal: new AbortController().signal, onDelta: () => undefined },
+      {
+        providerSettings: {
+          mode: "openai",
+          baseUrl: "https://api.openai.com/v1",
+          apiKey: "user-key",
+          model: "gpt-4o-mini",
+        },
+      },
+    );
+
+    expect(fetch).toHaveBeenNthCalledWith(
+      2,
+      "https://localhost:3001/api/provider/chat/completions",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "X-SuiteMind-Target-Url": "https://api.openai.com/v1/responses",
+        }),
+      }),
+    );
+  });
+
   it("uses the DeepSeek OpenAI-compatible endpoint", async () => {
     const stream = new ReadableStream({
       start(controller) {

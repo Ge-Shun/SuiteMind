@@ -55,12 +55,13 @@ npx office-addin-manifest validate apps/word-addin/dist/manifest.xml
 
 Users configure one provider after installing the add-in:
 
-| Provider          | Default API base URL                               | Request format                          |
-| ----------------- | -------------------------------------------------- | --------------------------------------- |
-| OpenAI-compatible | `https://api.openai.com/v1`                        | Bearer auth and `/chat/completions` SSE |
-| DeepSeek          | `https://api.deepseek.com`                         | Bearer auth and `/chat/completions` SSE |
-| Claude            | `https://api.anthropic.com`                        | Anthropic Messages SSE                  |
-| Gemini            | `https://generativelanguage.googleapis.com/v1beta` | Gemini streaming content SSE            |
+| Provider          | Default API base URL                               | Request format                 |
+| ----------------- | -------------------------------------------------- | ------------------------------ |
+| OpenAI            | `https://api.openai.com/v1`                        | Responses API `/responses` SSE |
+| OpenAI-compatible | User supplied                                      | `/chat/completions` SSE        |
+| DeepSeek          | `https://api.deepseek.com`                         | `/chat/completions` SSE        |
+| Claude            | `https://api.anthropic.com`                        | Anthropic Messages SSE         |
+| Gemini            | `https://generativelanguage.googleapis.com/v1beta` | Gemini streaming content SSE   |
 
 The API key stays only in the current task pane's memory and is removed when the
 pane reloads or closes. It is sent directly to the selected provider or through
@@ -69,14 +70,15 @@ provider settings may persist without the key.
 
 ## CORS Limitation
 
-The add-in first calls OpenAI-compatible providers directly. If the browser or
-Office WebView blocks the request, it automatically retries through the local
-HTTPS proxy at `https://localhost:3001`. The user must run `npm run proxy:local`
-on the same computer while generating, after running `npm run proxy:certs` once
-to install the trusted localhost certificate. Before starting the proxy for a
-GitHub Pages deployment, set `SUITEMIND_PROXY_ALLOWED_ORIGINS` to
-`https://ge-shun.github.io`. Claude and Gemini keep their provider-specific
-direct browser integrations.
+The add-in uses OpenAI Responses by default, while OpenAI-compatible and
+DeepSeek providers use Chat Completions for compatibility. If the browser or
+Office WebView blocks an OpenAI-family request, the add-in automatically retries
+through the local HTTPS proxy at `https://localhost:3001`. The user must run
+`npm run proxy:local` on the same computer while generating, after running
+`npm run proxy:certs` once to install the trusted localhost certificate. Before
+starting the proxy for a GitHub Pages deployment, set
+`SUITEMIND_PROXY_ALLOWED_ORIGINS` to `https://ge-shun.github.io`. Claude and
+Gemini keep their provider-specific direct browser integrations.
 
 ## Release Checks
 

@@ -1,4 +1,5 @@
-export type ProviderMode = "openai-compatible" | "deepseek" | "claude" | "gemini";
+export type ProviderMode =
+  "openai" | "openai-compatible" | "deepseek" | "claude" | "gemini";
 
 export interface ProviderSettings {
   mode: ProviderMode;
@@ -12,6 +13,7 @@ type PersistedProviderSettings = Omit<ProviderSettings, "apiKey">;
 export const PROVIDER_SETTINGS_STORAGE_KEY = "suitemind-provider-settings";
 
 export const providerModes = [
+  "openai",
   "openai-compatible",
   "deepseek",
   "claude",
@@ -19,6 +21,12 @@ export const providerModes = [
 ] as const satisfies readonly ProviderMode[];
 
 const defaultProviderSettingsByMode: Record<ProviderMode, ProviderSettings> = {
+  openai: {
+    mode: "openai",
+    baseUrl: "https://api.openai.com/v1",
+    apiKey: "",
+    model: "gpt-4o-mini",
+  },
   "openai-compatible": {
     mode: "openai-compatible",
     baseUrl: "https://api.openai.com/v1",
@@ -45,8 +53,7 @@ const defaultProviderSettingsByMode: Record<ProviderMode, ProviderSettings> = {
   },
 };
 
-export const defaultProviderSettings =
-  defaultProviderSettingsByMode["openai-compatible"];
+export const defaultProviderSettings = defaultProviderSettingsByMode.openai;
 
 export function getDefaultProviderSettings(mode: ProviderMode): ProviderSettings {
   return defaultProviderSettingsByMode[mode];
@@ -75,6 +82,19 @@ export function hasCompleteProviderSettings(settings: ProviderSettings): boolean
   return Boolean(normalized.baseUrl && normalized.apiKey && normalized.model);
 }
 
+function isOfficialOpenAiBaseUrl(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+
+  try {
+    const url = new URL(value);
+    return (
+      url.hostname.toLowerCase() === "api.openai.com" && /^\/v1\/?$/.test(url.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function loadProviderSettings(): ProviderSettings {
   try {
     const savedSettings = window.localStorage.getItem(PROVIDER_SETTINGS_STORAGE_KEY);
@@ -84,7 +104,11 @@ export function loadProviderSettings(): ProviderSettings {
     }
 
     const parsed = JSON.parse(savedSettings) as Partial<ProviderSettings>;
-    const mode = isProviderMode(parsed.mode) ? parsed.mode : "openai-compatible";
+    const storedMode = isProviderMode(parsed.mode) ? parsed.mode : "openai";
+    const mode =
+      storedMode === "openai-compatible" && isOfficialOpenAiBaseUrl(parsed.baseUrl)
+        ? "openai"
+        : storedMode;
     const defaults = getDefaultProviderSettings(mode);
     const settings = {
       mode,
@@ -93,7 +117,7 @@ export function loadProviderSettings(): ProviderSettings {
       model: typeof parsed.model === "string" ? parsed.model : defaults.model,
     };
 
-    if (Object.hasOwn(parsed, "apiKey")) {
+    if (Object.hasOwn(parsed, "apiKey") || parsed.mode !== mode) {
       persistProviderSettings(settings);
     }
 
