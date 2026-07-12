@@ -15,6 +15,17 @@ The default workflow deploys to the repository's free GitHub Project Pages URL:
 https://ge-shun.github.io/SuiteMind/
 ```
 
+The deployment also publishes the end-user installation page and manifest:
+
+```text
+https://ge-shun.github.io/SuiteMind/install.html
+https://ge-shun.github.io/SuiteMind/manifest.xml
+```
+
+Share the installation page with users. Do not share the development manifest,
+which points to localhost. Detailed user instructions live in
+[`installation.md`](installation.md).
+
 In **Settings -> Pages**, select **GitHub Actions** as the deployment source,
 then run the workflow or push to `main`. No custom domain or repository variable
 is required. The workflow builds with the `/SuiteMind/` base path and generates

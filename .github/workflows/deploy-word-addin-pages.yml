@@ -53,6 +53,11 @@ jobs:
           SUITEMIND_SUPPORT_URL: https://github.com/${{ github.repository }}
         run: npm run generate:production-manifest
 
+      - name: Verify installation artifacts
+        run: |
+          test -f apps/word-addin/dist/install.html
+          test -f apps/word-addin/dist/manifest.xml
+
       - name: Validate production manifest
         run: npx office-addin-manifest validate apps/word-addin/dist/manifest.xml
 

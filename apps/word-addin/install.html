@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="description" content="下载并安装 SuiteMind Microsoft Word 加载项。" />
+    <title>安装 SuiteMind Word 加载项</title>
+    <link rel="stylesheet" href="/src/install.css" />
+  </head>
+  <body>
+    <header class="install-header">
+      <div class="brand-lockup">
+        <img alt="" height="36" src="/assets/icon-80.png" width="36" />
+        <div>
+          <strong>SuiteMind</strong>
+          <span>Word 加载项</span>
+        </div>
+      </div>
+      <a class="repository-link" href="https://github.com/Ge-Shun/SuiteMind">
+        GitHub
+      </a>
+    </header>
+
+    <main class="install-layout">
+      <section class="install-intro" aria-labelledby="install-title">
+        <p class="eyebrow">生产版安装</p>
+        <h1 id="install-title">在 Word 中安装 SuiteMind</h1>
+        <p class="intro-copy">
+          生产版直接从 GitHub Pages 加载。安装后无需运行 Node.js、PowerShell 或
+          <code>npm run dev</code>。
+        </p>
+        <a
+          class="download-button"
+          download="SuiteMind-manifest.xml"
+          href="./manifest.xml"
+        >
+          下载生产版 manifest
+        </a>
+        <p class="download-note">
+          文件下载后应命名为 <code>SuiteMind-manifest.xml</code>。
+        </p>
+      </section>
+
+      <section class="installation-steps" aria-label="安装步骤">
+        <ol>
+          <li>
+            <span class="step-number">1</span>
+            <div>
+              <h2>下载 manifest</h2>
+              <p>使用上方按钮下载生产版 XML 文件，不要使用项目中的开发版 manifest。</p>
+            </div>
+          </li>
+          <li>
+            <span class="step-number">2</span>
+            <div>
+              <h2>在 Word 中上传</h2>
+              <p>
+                打开 Word
+                网页版，依次选择“插入”→“加载项”→“更多加载项”→“我的加载项”→“上传我的加载项”，然后选择刚下载的
+                XML 文件。
+              </p>
+            </div>
+          </li>
+          <li>
+            <span class="step-number">3</span>
+            <div>
+              <h2>打开 SuiteMind</h2>
+              <p>
+                安装完成后从“我的加载项”打开 SuiteMind。使用同一 Microsoft
+                账户时，可在支持的 Word 客户端中继续使用。
+              </p>
+            </div>
+          </li>
+          <li>
+            <span class="step-number">4</span>
+            <div>
+              <h2>配置模型</h2>
+              <p>
+                在任务窗格的模型配置中填写 Provider、API 地址、API Key
+                和模型，然后先运行“测试连接”。
+              </p>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section class="support-band" aria-labelledby="troubleshooting-title">
+        <h2 id="troubleshooting-title">看到 localhost 错误或旧图标？</h2>
+        <p>
+          这通常表示电脑里仍保留开发版旁加载项。请先从“我的加载项”移除旧版本，关闭所有
+          Word 窗口，再安装本页提供的生产版 manifest。
+        </p>
+        <p>
+          部分模型服务商会阻止 Office
+          直接连接。此类连接限制与加载项安装无关，请查看项目文档中的 CORS
+          和本地代理说明。
+        </p>
+      </section>
+
+      <details class="english-instructions">
+        <summary>English installation summary</summary>
+        <p>
+          Download the production manifest above. In Word for the web, choose Insert →
+          Add-ins → More Add-ins → My Add-ins → Upload My Add-in, then select the
+          downloaded XML file. Open SuiteMind from My Add-ins and configure your model
+          provider in the task pane.
+        </p>
+      </details>
+    </main>
+  </body>
+</html>

@@ -36,7 +36,10 @@ export default defineConfig(async ({ command, mode }) => ({
     outDir: "dist",
     sourcemap: mode !== "production",
     rollupOptions: {
-      input: fileURLToPath(new URL("./taskpane.html", import.meta.url)),
+      input: {
+        install: fileURLToPath(new URL("./install.html", import.meta.url)),
+        taskpane: fileURLToPath(new URL("./taskpane.html", import.meta.url)),
+      },
     },
   },
   test: {

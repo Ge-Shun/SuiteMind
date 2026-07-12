@@ -1,0 +1,240 @@
+:root {
+  color: #24272c;
+  background: #f5f6f8;
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-synthesis: none;
+  letter-spacing: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 280px;
+  margin: 0;
+  background: #f5f6f8;
+}
+
+a,
+button,
+summary {
+  outline-color: #185abd;
+  outline-offset: 3px;
+}
+
+.install-header {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px clamp(18px, 5vw, 56px);
+  border-bottom: 1px solid #d9dde3;
+  background: #ffffff;
+}
+
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-lockup img {
+  border-radius: 6px;
+}
+
+.brand-lockup div {
+  display: grid;
+  gap: 1px;
+}
+
+.brand-lockup strong {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.brand-lockup span {
+  color: #69717b;
+  font-size: 11px;
+}
+
+.repository-link {
+  color: #185abd;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.install-layout {
+  width: min(760px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: clamp(32px, 7vw, 68px) 0 56px;
+}
+
+.install-intro {
+  padding-bottom: 32px;
+  border-bottom: 1px solid #d9dde3;
+}
+
+.eyebrow {
+  margin: 0 0 10px;
+  color: #185abd;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+h1,
+h2,
+p {
+  overflow-wrap: anywhere;
+}
+
+h1 {
+  margin: 0;
+  color: #20242a;
+  font-size: clamp(28px, 6vw, 42px);
+  font-weight: 700;
+  line-height: 1.16;
+}
+
+.intro-copy {
+  max-width: 620px;
+  margin: 16px 0 22px;
+  color: #555e68;
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+code {
+  padding: 1px 4px;
+  border: 1px solid #d8dde4;
+  border-radius: 3px;
+  background: #ffffff;
+  font-family: Consolas, "SFMono-Regular", monospace;
+  font-size: 0.9em;
+}
+
+.download-button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 16px;
+  border: 1px solid #185abd;
+  border-radius: 5px;
+  color: #ffffff;
+  background: #185abd;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.download-button:hover {
+  border-color: #124a9f;
+  background: #124a9f;
+}
+
+.download-note {
+  margin: 10px 0 0;
+  color: #737b84;
+  font-size: 12px;
+}
+
+.installation-steps {
+  padding: 32px 0;
+}
+
+.installation-steps ol {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.installation-steps li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 14px;
+  padding: 18px 0;
+  border-bottom: 1px solid #e0e3e8;
+}
+
+.installation-steps li:first-child {
+  padding-top: 0;
+}
+
+.step-number {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #a9bfdf;
+  border-radius: 5px;
+  color: #185abd;
+  background: #eef4fc;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.installation-steps h2,
+.support-band h2 {
+  margin: 2px 0 7px;
+  color: #292e34;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.installation-steps p,
+.support-band p,
+.english-instructions p {
+  margin: 0;
+  color: #59626c;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.support-band {
+  padding: 20px;
+  border-left: 3px solid #b42318;
+  background: #ffffff;
+}
+
+.support-band p + p {
+  margin-top: 10px;
+}
+
+.english-instructions {
+  margin-top: 20px;
+  padding: 16px 0;
+  border-top: 1px solid #d9dde3;
+  border-bottom: 1px solid #d9dde3;
+}
+
+.english-instructions summary {
+  cursor: pointer;
+  color: #185abd;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.english-instructions p {
+  margin-top: 12px;
+}
+
+@media (max-width: 420px) {
+  .install-header {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .install-layout {
+    width: min(100% - 28px, 760px);
+  }
+
+  .download-button {
+    width: 100%;
+  }
+}

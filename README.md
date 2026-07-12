@@ -45,9 +45,8 @@ the key is never written to local storage, committed to the repository, or sent
 to a SuiteMind server.
 
 Direct provider calls require browser/Office WebView CORS support. A valid key
-can still fail when a provider blocks cross-origin requests. For an
-An OpenAI or OpenAI-compatible provider that blocks CORS can use the temporary
-local proxy:
+can still fail when a provider blocks cross-origin requests. An OpenAI or
+OpenAI-compatible provider that blocks CORS can use the temporary local proxy:
 
 ```powershell
 npm run proxy:certs
@@ -89,6 +88,21 @@ SuiteMind/
 ```
 
 ## Quick Start
+
+### Install The Production Add-in
+
+End users do not need Node.js or a local development server. Open the production
+installation page, download the manifest, and upload it from Word's **My
+Add-ins** screen:
+
+```text
+https://ge-shun.github.io/SuiteMind/install.html
+```
+
+See [docs/installation.md](docs/installation.md) for installation, removal, and
+troubleshooting instructions.
+
+### Local Development
 
 Requirements: Node.js 22.12 or newer and npm 10 or newer.
 
