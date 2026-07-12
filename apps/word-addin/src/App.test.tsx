@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 import { UI_LANGUAGE_STORAGE_KEY } from "./i18n";
+import { testProviderConnection } from "./services/api";
 import { PROVIDER_SETTINGS_STORAGE_KEY } from "./services/provider-settings";
 
 vi.mock("./office", () => ({
@@ -18,7 +19,18 @@ vi.mock("./office", () => ({
 }));
 
 vi.mock("./services/api", () => ({
-  transformText: vi.fn(),
+  SuiteMindApiError: class SuiteMindApiError extends Error {
+    readonly code: string;
+    readonly retryable: boolean;
+
+    constructor(code: string, message: string, retryable = false) {
+      super(message);
+      this.code = code;
+      this.retryable = retryable;
+    }
+  },
+  testProviderConnection: vi.fn(),
+  transformLongText: vi.fn(),
 }));
 
 describe("App language switcher", () => {
@@ -36,6 +48,7 @@ describe("App language switcher", () => {
 
     fireEvent.click(screen.getByRole("switch", { name: "Switch to Chinese" }));
 
+    fireEvent.click(screen.getByRole("tab", { name: "编辑" }));
     expect(screen.getByRole("button", { name: "润色" })).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "切换到英文" })).toBeChecked();
     expect(document.documentElement.lang).toBe("zh-CN");
@@ -51,6 +64,7 @@ describe("App language switcher", () => {
     unmount();
     render(<App />);
 
+    fireEvent.click(screen.getByRole("tab", { name: "编辑" }));
     expect(screen.getByRole("button", { name: "润色" })).toBeInTheDocument();
   });
 
@@ -63,6 +77,26 @@ describe("App language switcher", () => {
     expect(
       screen.queryByRole("option", { name: "SuiteMind API" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("hides the workspace while provider settings are open", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Model settings" }));
+
+    expect(screen.getByRole("region", { name: "Model settings" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "AI workspace" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to workspace" }));
+
+    expect(
+      screen.queryByRole("region", { name: "Model settings" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "AI workspace" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Ask" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Edit" })).toBeInTheDocument();
   });
 
   it("updates an active validation message when the language changes", async () => {
@@ -111,5 +145,26 @@ describe("App language switcher", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear API key" }));
 
     expect(apiKeyInput).toHaveValue("");
+  });
+
+  it("tests the active provider connection from model settings", async () => {
+    vi.mocked(testProviderConnection).mockResolvedValueOnce({
+      receivedText: true,
+      transport: "direct",
+    });
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Model settings" }));
+
+    fireEvent.change(screen.getByLabelText("API key"), {
+      target: { value: "session-user-key" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Test connection" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Model connection works through direct provider access.",
+      ),
+    );
+    expect(testProviderConnection).toHaveBeenCalled();
   });
 });

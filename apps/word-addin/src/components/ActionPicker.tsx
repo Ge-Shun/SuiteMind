@@ -1,35 +1,27 @@
-import {
-  Languages,
-  ListCollapse,
-  MessageCircleQuestion,
-  PenLine,
-  Repeat2,
-  Sparkles,
-  WandSparkles,
-} from "lucide-react";
+import { Languages, ListCollapse, PenLine, Repeat2, Sparkles } from "lucide-react";
 import type { ComponentType } from "react";
 
 import type { TransformOperation } from "@suitemind/contracts";
 
+type EditingOperation = Exclude<TransformOperation, "ask" | "custom">;
+
 const actions: Array<{
-  operation: TransformOperation;
+  operation: EditingOperation;
   icon: ComponentType<{ size?: number; strokeWidth?: number }>;
 }> = [
-  { operation: "ask", icon: MessageCircleQuestion },
   { operation: "polish", icon: Sparkles },
   { operation: "rewrite", icon: Repeat2 },
   { operation: "translate", icon: Languages },
   { operation: "summarize", icon: ListCollapse },
   { operation: "continue", icon: PenLine },
-  { operation: "custom", icon: WandSparkles },
 ];
 
 interface ActionPickerProps {
-  value: TransformOperation;
+  value: EditingOperation;
   disabled?: boolean;
   labels: Record<TransformOperation, string>;
   ariaLabel: string;
-  onChange: (operation: TransformOperation) => void;
+  onChange: (operation: EditingOperation) => void;
 }
 
 export function ActionPicker({
@@ -43,6 +35,7 @@ export function ActionPicker({
     <div className="action-grid" aria-label={ariaLabel}>
       {actions.map(({ operation, icon: Icon }) => (
         <button
+          aria-pressed={value === operation}
           className="action-button"
           data-selected={value === operation}
           disabled={disabled}

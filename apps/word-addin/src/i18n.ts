@@ -1,6 +1,7 @@
 import type { TransformOperation } from "@suitemind/contracts";
 
 import type { ProviderMode } from "./services/provider-settings";
+import type { ProviderBaseUrlIssue } from "./services/provider-settings";
 
 export type UiLanguage = "en" | "zh-CN";
 export type PreviewView = "diff" | "before" | "after";
@@ -23,8 +24,13 @@ export type StatusMessageKey =
   | "questionRequired"
   | "editingInstructionRequired"
   | "providerSettingsRequired"
+  | "testingProviderConnection"
+  | "providerConnectionDirect"
+  | "providerConnectionLocalProxy"
   | "readingContext"
   | "generating"
+  | "generatingChunkedResult"
+  | "combiningChunkedResult"
   | "replacing"
   | "inserting"
   | "answerCopied"
@@ -32,7 +38,8 @@ export type StatusMessageKey =
   | "mockReplaced"
   | "mockInserted"
   | "wordReplaced"
-  | "wordInserted";
+  | "wordInserted"
+  | "wordDraftInserted";
 
 export type ErrorMessageKey =
   | "fallback"
@@ -47,7 +54,10 @@ export type ErrorMessageKey =
   | "wordOnly"
   | "emptyResponse"
   | "incompleteStream"
-  | "localProxyUnavailable";
+  | "localProxyUnavailable"
+  | "providerSettingsRequiredError"
+  | "invalidRequest"
+  | "malformedProviderStream";
 
 export interface AppStrings {
   actions: Record<TransformOperation, string>;
@@ -57,6 +67,12 @@ export interface AppStrings {
   errors: Record<ErrorMessageKey, string>;
   transformControls: string;
   editingAction: string;
+  askMode: string;
+  editMode: string;
+  backToWorkspace: string;
+  editingTools: string;
+  expandEditingTools: string;
+  collapseEditingTools: string;
   targetLanguage: string;
   question: string;
   questionPlaceholder: string;
@@ -81,11 +97,17 @@ export interface AppStrings {
   providerMode: string;
   providerModes: Record<ProviderMode, string>;
   apiBaseUrl: string;
+  baseUrlIssues: Record<ProviderBaseUrlIssue, string>;
   apiKey: string;
   apiKeyPlaceholder: string;
   model: string;
+  recommendedModel: string;
+  customModel: string;
   customProvider: string;
   clearApiKey: string;
+  testProviderConnection: string;
+  expandProviderSettings: string;
+  collapseProviderSettings: string;
   apiKeyStorageNotice: string;
   characterCount: (count: number) => string;
 }
@@ -120,8 +142,15 @@ export const translations: Record<UiLanguage, AppStrings> = {
       editingInstructionRequired: "Enter an editing instruction first.",
       providerSettingsRequired:
         "Complete the API base URL, API key, and model in Model settings.",
+      testingProviderConnection: "Testing model connection...",
+      providerConnectionDirect:
+        "Model connection works through direct provider access.",
+      providerConnectionLocalProxy:
+        "Model connection works through the local provider proxy.",
       readingContext: "Reading Word context...",
       generating: "Generating...",
+      generatingChunkedResult: "Generating long document chunks...",
+      combiningChunkedResult: "Combining long document results...",
       replacing: "Replacing selection...",
       inserting: "Inserting result...",
       answerCopied: "Answer copied to the clipboard.",
@@ -130,6 +159,8 @@ export const translations: Record<UiLanguage, AppStrings> = {
       mockInserted: "Result inserted in the browser preview.",
       wordReplaced: "Selection replaced. Word Undo can restore it.",
       wordInserted: "Result inserted. Word Undo can remove it.",
+      wordDraftInserted:
+        "Result inserted as a SuiteMind draft block. Word Undo can remove it.",
     },
     errors: {
       fallback: "Something went wrong.",
@@ -138,7 +169,7 @@ export const translations: Record<UiLanguage, AppStrings> = {
         "The Word selection changed. Select the original text and try again.",
       expiredSelection:
         "The saved Word selection is no longer available. Select the text again.",
-      selectionTooLong: "The selection is longer than 10,000 characters.",
+      selectionTooLong: "The selection is longer than 60,000 characters.",
       emptyProvider: "The AI provider returned an empty result.",
       officeJsTimeout: "Microsoft Office.js did not load in time.",
       officeJsLoad: "Microsoft Office.js could not be loaded.",
@@ -149,9 +180,20 @@ export const translations: Record<UiLanguage, AppStrings> = {
       incompleteStream: "The AI provider stream ended before completion.",
       localProxyUnavailable:
         "Direct provider access was blocked and the local proxy is unavailable. Run npm run proxy:local on this computer.",
+      providerSettingsRequiredError:
+        "Complete the API base URL, API key, and model in Model settings.",
+      invalidRequest: "The request is invalid. Check the selected action and inputs.",
+      malformedProviderStream:
+        "The AI provider returned a malformed streaming response.",
     },
     transformControls: "AI workspace",
     editingAction: "Action",
+    askMode: "Ask",
+    editMode: "Edit",
+    backToWorkspace: "Back to workspace",
+    editingTools: "Editing tools",
+    expandEditingTools: "Show editing tools",
+    collapseEditingTools: "Hide editing tools",
     targetLanguage: "Target language",
     question: "Question",
     questionPlaceholder: "Ask a question about the selected Word text",
@@ -182,11 +224,22 @@ export const translations: Record<UiLanguage, AppStrings> = {
       gemini: "Gemini",
     },
     apiBaseUrl: "API base URL",
+    baseUrlIssues: {
+      required: "Enter an API base URL.",
+      invalid: "Enter a valid API base URL.",
+      insecure:
+        "Use HTTPS for provider URLs. HTTP is allowed only for localhost testing.",
+    },
     apiKey: "API key",
     apiKeyPlaceholder: "sk-...",
     model: "Model",
+    recommendedModel: "Recommended model",
+    customModel: "Custom model",
     customProvider: "Custom API",
     clearApiKey: "Clear API key",
+    testProviderConnection: "Test connection",
+    expandProviderSettings: "Expand provider settings",
+    collapseProviderSettings: "Collapse provider settings",
     apiKeyStorageNotice:
       "Your API key stays only in this task pane session and is removed when the pane reloads or closes. It is sent to the selected provider directly or through the temporary local proxy, and is never sent to a SuiteMind server.",
     characterCount: (count) => `${count.toLocaleString("en")} chars`,
@@ -219,8 +272,13 @@ export const translations: Record<UiLanguage, AppStrings> = {
       questionRequired: "请先输入问题。",
       editingInstructionRequired: "请先输入修改指令。",
       providerSettingsRequired: "请在模型配置中填写完整的接口地址、API Key 和模型。",
+      testingProviderConnection: "正在测试模型连接...",
+      providerConnectionDirect: "模型连接正常，当前可直连服务商接口。",
+      providerConnectionLocalProxy: "模型连接正常，当前通过本地代理访问服务商接口。",
       readingContext: "正在读取 Word 上下文...",
       generating: "正在生成...",
+      generatingChunkedResult: "正在分段处理长文档...",
+      combiningChunkedResult: "正在合并长文档结果...",
       replacing: "正在替换选区...",
       inserting: "正在插入结果...",
       answerCopied: "回答已复制到剪贴板。",
@@ -229,13 +287,14 @@ export const translations: Record<UiLanguage, AppStrings> = {
       mockInserted: "已在浏览器预览中插入结果。",
       wordReplaced: "已替换选区，可使用 Word 撤销恢复。",
       wordInserted: "已插入结果，可使用 Word 撤销删除。",
+      wordDraftInserted: "已作为 SuiteMind 草稿区插入，可使用 Word 撤销删除。",
     },
     errors: {
       fallback: "发生错误。",
       emptySelection: "请选择文本，或将光标放在非空的 Word 段落中。",
       staleSelection: "Word 中的原文已发生变化，请重新选择后再试。",
       expiredSelection: "保存的 Word 选区已失效，请重新选择文本。",
-      selectionTooLong: "选区不能超过 10,000 个字符。",
+      selectionTooLong: "选区不能超过 60,000 个字符。",
       emptyProvider: "AI 服务返回了空结果。",
       officeJsTimeout: "Microsoft Office.js 加载超时。",
       officeJsLoad: "无法加载 Microsoft Office.js。",
@@ -245,9 +304,19 @@ export const translations: Record<UiLanguage, AppStrings> = {
       incompleteStream: "AI 服务的流式响应在完成前中断。",
       localProxyUnavailable:
         "模型接口禁止浏览器直连，且本地代理未运行。请在此电脑上运行 npm run proxy:local。",
+      providerSettingsRequiredError:
+        "请在模型配置中填写完整的接口地址、API Key 和模型。",
+      invalidRequest: "请求无效，请检查当前操作和输入内容。",
+      malformedProviderStream: "AI 服务返回了格式异常的流式响应。",
     },
     transformControls: "AI 工作区",
     editingAction: "操作",
+    askMode: "提问",
+    editMode: "编辑",
+    backToWorkspace: "返回工作区",
+    editingTools: "编辑工具",
+    expandEditingTools: "呼出编辑工具",
+    collapseEditingTools: "收起编辑工具",
     targetLanguage: "目标语言",
     question: "问题",
     questionPlaceholder: "针对 Word 中选中的文本进行提问",
@@ -278,11 +347,21 @@ export const translations: Record<UiLanguage, AppStrings> = {
       gemini: "Gemini",
     },
     apiBaseUrl: "API 接口地址",
+    baseUrlIssues: {
+      required: "请填写 API 接口地址。",
+      invalid: "请填写有效的 API 接口地址。",
+      insecure: "模型接口地址应使用 HTTPS；仅本机测试允许使用 HTTP。",
+    },
     apiKey: "API Key",
     apiKeyPlaceholder: "sk-...",
     model: "模型",
+    recommendedModel: "推荐模型",
+    customModel: "自定义模型",
     customProvider: "自定义 API",
     clearApiKey: "清除 API Key",
+    testProviderConnection: "测试连接",
+    expandProviderSettings: "展开服务提供方配置",
+    collapseProviderSettings: "收起服务提供方配置",
     apiKeyStorageNotice:
       "API Key 仅保留在当前任务窗格会话中，刷新或关闭后会自动清除。Key 会直接发送给模型服务商，或经临时本地代理转发，不会发送到 SuiteMind 服务器。",
     characterCount: (count) => `${count.toLocaleString("zh-CN")} 字符`,
