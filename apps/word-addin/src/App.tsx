@@ -556,107 +556,107 @@ export default function App() {
             </div>
 
             <div className="settings-panel">
-                <label className="field-label">
-                  <span>{text.providerMode}</span>
-                  <select
-                    disabled={busy}
-                    onChange={(event) =>
-                      changeProviderMode(event.target.value as ProviderSettings["mode"])
-                    }
-                    value={providerSettings.mode}
-                  >
-                    {providerModes.map((mode) => (
-                      <option key={mode} value={mode}>
-                        {text.providerModes[mode]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              <label className="field-label">
+                <span>{text.providerMode}</span>
+                <select
+                  disabled={busy}
+                  onChange={(event) =>
+                    changeProviderMode(event.target.value as ProviderSettings["mode"])
+                  }
+                  value={providerSettings.mode}
+                >
+                  {providerModes.map((mode) => (
+                    <option key={mode} value={mode}>
+                      {text.providerModes[mode]}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-                <label className="field-label">
-                  <span>{text.apiBaseUrl}</span>
-                  <input
-                    aria-invalid={Boolean(baseUrlIssue)}
-                    aria-describedby={baseUrlIssue ? "base-url-feedback" : undefined}
-                    disabled={busy}
-                    onChange={(event) =>
-                      updateProviderSettings({ baseUrl: event.target.value })
+              <label className="field-label">
+                <span>{text.apiBaseUrl}</span>
+                <input
+                  aria-invalid={Boolean(baseUrlIssue)}
+                  aria-describedby={baseUrlIssue ? "base-url-feedback" : undefined}
+                  disabled={busy}
+                  onChange={(event) =>
+                    updateProviderSettings({ baseUrl: event.target.value })
+                  }
+                  onBlur={normalizeBaseUrlInput}
+                  placeholder="https://api.openai.com/v1"
+                  type="url"
+                  value={providerSettings.baseUrl}
+                />
+                {baseUrlIssue && (
+                  <span className="field-feedback" id="base-url-feedback">
+                    {text.baseUrlIssues[baseUrlIssue]}
+                  </span>
+                )}
+              </label>
+              <label className="field-label">
+                <span>{text.apiKey}</span>
+                <input
+                  autoComplete="off"
+                  disabled={busy}
+                  onChange={(event) =>
+                    updateProviderSettings({ apiKey: event.target.value })
+                  }
+                  placeholder={text.apiKeyPlaceholder}
+                  type="password"
+                  value={providerSettings.apiKey}
+                />
+              </label>
+              <label className="field-label">
+                <span>{text.recommendedModel}</span>
+                <select
+                  disabled={busy}
+                  onChange={(event) => {
+                    if (event.target.value !== "__custom") {
+                      updateProviderSettings({ model: event.target.value });
                     }
-                    onBlur={normalizeBaseUrlInput}
-                    placeholder="https://api.openai.com/v1"
-                    type="url"
-                    value={providerSettings.baseUrl}
-                  />
-                  {baseUrlIssue && (
-                    <span className="field-feedback" id="base-url-feedback">
-                      {text.baseUrlIssues[baseUrlIssue]}
-                    </span>
-                  )}
-                </label>
-                <label className="field-label">
-                  <span>{text.apiKey}</span>
-                  <input
-                    autoComplete="off"
-                    disabled={busy}
-                    onChange={(event) =>
-                      updateProviderSettings({ apiKey: event.target.value })
-                    }
-                    placeholder={text.apiKeyPlaceholder}
-                    type="password"
-                    value={providerSettings.apiKey}
-                  />
-                </label>
-                <label className="field-label">
-                  <span>{text.recommendedModel}</span>
-                  <select
-                    disabled={busy}
-                    onChange={(event) => {
-                      if (event.target.value !== "__custom") {
-                        updateProviderSettings({ model: event.target.value });
-                      }
-                    }}
-                    value={selectedModelPreset}
-                  >
-                    {modelPresets.map((preset) => (
-                      <option key={preset.model} value={preset.model}>
-                        {preset.label}
-                      </option>
-                    ))}
-                    <option value="__custom">{text.customModel}</option>
-                  </select>
-                </label>
-                <label className="field-label">
-                  <span>{text.model}</span>
-                  <input
-                    disabled={busy}
-                    onChange={(event) =>
-                      updateProviderSettings({ model: event.target.value })
-                    }
-                    placeholder="gpt-4o-mini"
-                    value={providerSettings.model}
-                  />
-                </label>
-                <p className="settings-note">{text.apiKeyStorageNotice}</p>
-                <div className="settings-actions">
-                  <button
-                    className="clear-key-button"
-                    disabled={busy || !providerSettings.apiKey}
-                    onClick={clearProviderApiKey}
-                    type="button"
-                  >
-                    <Trash2 size={15} />
-                    {text.clearApiKey}
-                  </button>
-                  <button
-                    className="test-provider-button"
-                    disabled={busy || !providerReady}
-                    onClick={() => void testProviderSettings()}
-                    type="button"
-                  >
-                    <RefreshCw size={15} />
-                    {text.testProviderConnection}
-                  </button>
-                </div>
+                  }}
+                  value={selectedModelPreset}
+                >
+                  {modelPresets.map((preset) => (
+                    <option key={preset.model} value={preset.model}>
+                      {preset.label}
+                    </option>
+                  ))}
+                  <option value="__custom">{text.customModel}</option>
+                </select>
+              </label>
+              <label className="field-label">
+                <span>{text.model}</span>
+                <input
+                  disabled={busy}
+                  onChange={(event) =>
+                    updateProviderSettings({ model: event.target.value })
+                  }
+                  placeholder="gpt-4o-mini"
+                  value={providerSettings.model}
+                />
+              </label>
+              <p className="settings-note">{text.apiKeyStorageNotice}</p>
+              <div className="settings-actions">
+                <button
+                  className="clear-key-button"
+                  disabled={busy || !providerSettings.apiKey}
+                  onClick={clearProviderApiKey}
+                  type="button"
+                >
+                  <Trash2 size={15} />
+                  {text.clearApiKey}
+                </button>
+                <button
+                  className="test-provider-button"
+                  disabled={busy || !providerReady}
+                  onClick={() => void testProviderSettings()}
+                  type="button"
+                >
+                  <RefreshCw size={15} />
+                  {text.testProviderConnection}
+                </button>
+              </div>
             </div>
             <StatusBanner message={message} phase={phase} />
           </section>
@@ -759,7 +759,6 @@ export default function App() {
                   {text.generateFromWord}
                 </button>
               )}
-
             </section>
 
             <StatusBanner message={message} phase={phase} />

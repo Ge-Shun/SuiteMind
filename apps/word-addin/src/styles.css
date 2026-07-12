@@ -166,7 +166,9 @@ textarea:focus-visible {
   border: 1px solid #aeb5be;
   border-radius: 8px;
   background: #dfe3e8;
-  transition: background 140ms ease, border-color 140ms ease;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease;
 }
 
 .language-thumb {
@@ -317,7 +319,9 @@ textarea:focus-visible {
   background: var(--paper);
   font-size: 13px;
   font-weight: 400;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .field-label input:hover:not(:disabled),

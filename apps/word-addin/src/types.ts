@@ -1,7 +1,14 @@
 import type { TransformOperation } from "@suitemind/contracts";
 
 export type AppPhase =
-  "ready" | "reading" | "generating" | "review" | "applying" | "success" | "error";
+  | "ready"
+  | "reading"
+  | "testing"
+  | "generating"
+  | "review"
+  | "applying"
+  | "success"
+  | "error";
 
 export type ApplyMode = "replace" | "insert";
 

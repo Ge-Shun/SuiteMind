@@ -12,6 +12,44 @@ type TrackedTarget =
   | { kind: "selection"; object: Word.Range }
   | { kind: "paragraph"; object: Word.Paragraph };
 
+type ParagraphInsertTarget = Word.Range | Word.Paragraph;
+const SUITEMIND_DRAFT_TAG = "suitemind-draft";
+const SUITEMIND_DRAFT_TITLE = "SuiteMind Draft";
+
+function splitParagraphText(text: string): string[] {
+  return text
+    .replace(/\r\n/g, "\n")
+    .split(/\n+/)
+    .filter((part) => part.trim());
+}
+
+function insertStyledParagraphsAfter(
+  target: ParagraphInsertTarget,
+  text: string,
+  style: string,
+): void {
+  const paragraphs = splitParagraphText(text);
+  let anchor = target;
+
+  for (const paragraphText of paragraphs.length ? paragraphs : [text]) {
+    const insertedParagraph = anchor.insertParagraph(
+      paragraphText,
+      Word.InsertLocation.after,
+    );
+
+    if (style) {
+      insertedParagraph.style = style;
+    }
+
+    const draftControl = insertedParagraph.insertContentControl();
+    draftControl.title = SUITEMIND_DRAFT_TITLE;
+    draftControl.tag = SUITEMIND_DRAFT_TAG;
+    draftControl.appearance = Word.ContentControlAppearance.boundingBox;
+
+    anchor = insertedParagraph;
+  }
+}
+
 export class WordOfficeAdapter implements OfficeAdapter {
   readonly mode = "word" as const;
   private trackedTarget: TrackedTarget | null = null;
@@ -124,14 +162,7 @@ export class WordOfficeAdapter implements OfficeAdapter {
         if (mode === "replace") {
           target.insertText(result, Word.InsertLocation.replace);
         } else {
-          const insertedParagraph = target.insertParagraph(
-            result,
-            Word.InsertLocation.after,
-          );
-
-          if (sourceParagraph.style) {
-            insertedParagraph.style = sourceParagraph.style;
-          }
+          insertStyledParagraphsAfter(target, result, sourceParagraph.style);
         }
 
         target.untrack();

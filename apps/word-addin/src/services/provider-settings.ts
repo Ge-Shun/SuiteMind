@@ -8,6 +8,13 @@ export interface ProviderSettings {
   model: string;
 }
 
+export interface ProviderModelPreset {
+  label: string;
+  model: string;
+}
+
+export type ProviderBaseUrlIssue = "required" | "invalid" | "insecure";
+
 type PersistedProviderSettings = Omit<ProviderSettings, "apiKey">;
 
 export const PROVIDER_SETTINGS_STORAGE_KEY = "suitemind-provider-settings";
@@ -53,6 +60,34 @@ const defaultProviderSettingsByMode: Record<ProviderMode, ProviderSettings> = {
   },
 };
 
+export const providerModelPresets: Record<
+  ProviderMode,
+  readonly ProviderModelPreset[]
+> = {
+  openai: [
+    { label: "GPT-4o mini", model: "gpt-4o-mini" },
+    { label: "GPT-4o", model: "gpt-4o" },
+    { label: "GPT-4.1 mini", model: "gpt-4.1-mini" },
+  ],
+  "openai-compatible": [
+    { label: "GPT-4o mini", model: "gpt-4o-mini" },
+    { label: "Qwen Plus", model: "qwen-plus" },
+    { label: "Llama 3.1 70B", model: "llama-3.1-70b-instruct" },
+  ],
+  deepseek: [
+    { label: "DeepSeek Chat", model: "deepseek-chat" },
+    { label: "DeepSeek Reasoner", model: "deepseek-reasoner" },
+  ],
+  claude: [
+    { label: "Claude Sonnet 4.5", model: "claude-sonnet-4-5" },
+    { label: "Claude Haiku 3.5", model: "claude-3-5-haiku-latest" },
+  ],
+  gemini: [
+    { label: "Gemini 2.5 Flash", model: "gemini-2.5-flash" },
+    { label: "Gemini 2.5 Pro", model: "gemini-2.5-pro" },
+  ],
+};
+
 export const defaultProviderSettings = defaultProviderSettingsByMode.openai;
 
 export function getDefaultProviderSettings(mode: ProviderMode): ProviderSettings {
@@ -71,15 +106,58 @@ export function normalizeProviderSettings(
 ): ProviderSettings {
   return {
     mode: settings.mode,
-    baseUrl: settings.baseUrl.trim().replace(/\/$/, ""),
+    baseUrl: normalizeProviderBaseUrl(settings.baseUrl),
     apiKey: settings.apiKey.trim(),
     model: settings.model.trim(),
   };
 }
 
+export function normalizeProviderBaseUrl(value: string): string {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  const withProtocol = /^[a-z][a-z\d+\-.]*:\/\//i.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+
+  return withProtocol.replace(/\/+$/, "");
+}
+
+export function getProviderBaseUrlIssue(value: string): ProviderBaseUrlIssue | null {
+  const normalized = normalizeProviderBaseUrl(value);
+
+  if (!normalized) {
+    return "required";
+  }
+
+  try {
+    const url = new URL(normalized);
+    const isLocalhost =
+      url.hostname === "localhost" ||
+      url.hostname === "127.0.0.1" ||
+      url.hostname === "::1";
+
+    if (url.protocol !== "https:" && !(url.protocol === "http:" && isLocalhost)) {
+      return "insecure";
+    }
+
+    return null;
+  } catch {
+    return "invalid";
+  }
+}
+
 export function hasCompleteProviderSettings(settings: ProviderSettings): boolean {
   const normalized = normalizeProviderSettings(settings);
-  return Boolean(normalized.baseUrl && normalized.apiKey && normalized.model);
+  return Boolean(
+    normalized.baseUrl &&
+    !getProviderBaseUrlIssue(normalized.baseUrl) &&
+    normalized.apiKey &&
+    normalized.model,
+  );
 }
 
 function isOfficialOpenAiBaseUrl(value: unknown): boolean {

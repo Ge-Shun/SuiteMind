@@ -9,3 +9,5 @@ coverage/
 .vscode/
 dev-certs/
 .playwright-cli/
+apps/word-addin/playwright-report/
+apps/word-addin/test-results/

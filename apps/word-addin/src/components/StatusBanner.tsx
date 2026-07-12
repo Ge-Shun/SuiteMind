@@ -19,7 +19,10 @@ export function StatusBanner({ phase, message }: StatusBannerProps) {
     <div className="status-banner" data-phase={phase} role="status">
       <Icon
         className={
-          phase === "reading" || phase === "generating" || phase === "applying"
+          phase === "reading" ||
+          phase === "testing" ||
+          phase === "generating" ||
+          phase === "applying"
             ? "spin"
             : undefined
         }

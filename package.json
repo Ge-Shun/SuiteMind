@@ -11,6 +11,7 @@
     "build": "npm run build --workspaces --if-present",
     "dev": "npm run dev -w @suitemind/word-addin",
     "dev:word": "npm run dev -w @suitemind/word-addin",
+    "e2e:word": "npm run e2e -w @suitemind/word-addin",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "generate:icons": "node scripts/generate-icons.mjs",

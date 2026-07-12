@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { buildPrompt, transformText } from "./api";
+import {
+  buildPrompt,
+  testProviderConnection,
+  transformLongText,
+  transformText,
+} from "./api";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -144,6 +149,47 @@ describe("direct provider transforms", () => {
         }),
       }),
     );
+  });
+
+  it("reports when OpenAI-compatible requests use the local proxy", async () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            'data: {"choices":[{"delta":{"content":"Proxy"},"finish_reason":"stop"}]}\n\n',
+          ),
+        );
+        controller.close();
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+        .mockResolvedValueOnce(new Response(stream, { status: 200 })),
+    );
+    vi.stubGlobal("crypto", { randomUUID: () => "request-id" });
+    const transports: string[] = [];
+
+    await transformText(
+      { operation: "polish", text: "Draft", instruction: "" },
+      {
+        signal: new AbortController().signal,
+        onDelta: () => undefined,
+        onTransport: (transport) => transports.push(transport),
+      },
+      {
+        providerSettings: {
+          mode: "openai-compatible",
+          baseUrl: "https://provider.example/v1",
+          apiKey: "user-key",
+          model: "custom-model",
+        },
+      },
+    );
+
+    expect(transports).toEqual(["local-proxy"]);
   });
 
   it("uses the DeepSeek OpenAI-compatible endpoint", async () => {
@@ -329,7 +375,13 @@ describe("direct provider transforms", () => {
     expect(deltas).toEqual(["Gemini"]);
     const [url] = fetch.mock.calls[0] as Parameters<typeof fetch>;
     expect(url.toString()).toContain("models/gemini-2.5-flash:streamGenerateContent");
-    expect(url.toString()).toContain("key=gemini-key");
+    expect(url.toString()).not.toContain("key=gemini-key");
+    expect(fetch).toHaveBeenCalledWith(
+      expect.any(URL),
+      expect.objectContaining({
+        headers: expect.objectContaining({ "x-goog-api-key": "gemini-key" }),
+      }),
+    );
   });
 
   it("requires complete provider settings", async () => {
@@ -347,5 +399,121 @@ describe("direct provider transforms", () => {
         },
       ),
     ).rejects.toMatchObject({ code: "PROVIDER_SETTINGS_REQUIRED" });
+  });
+
+  it("validates transform requests at runtime", async () => {
+    await expect(
+      transformText(
+        { operation: "ask", text: "Draft", instruction: "   " },
+        { signal: new AbortController().signal, onDelta: () => undefined },
+        {
+          providerSettings: {
+            mode: "openai-compatible",
+            baseUrl: "https://example.test/v1",
+            apiKey: "user-key",
+            model: "custom-model",
+          },
+        },
+      ),
+    ).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+  });
+
+  it("tests provider connections with a minimal prompt", async () => {
+    const stream = new ReadableStream({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            'data: {"choices":[{"delta":{"content":"OK"},"finish_reason":"stop"}]}\n\n',
+          ),
+        );
+        controller.close();
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(stream, { status: 200 })),
+    );
+    vi.stubGlobal("crypto", { randomUUID: () => "request-id" });
+
+    await expect(
+      testProviderConnection(
+        {
+          mode: "openai-compatible",
+          baseUrl: "https://example.test/v1",
+          apiKey: "user-key",
+          model: "custom-model",
+        },
+        new AbortController().signal,
+      ),
+    ).resolves.toEqual({ receivedText: true, transport: "direct" });
+  });
+
+  it("processes long edit requests in multiple provider calls", async () => {
+    const fetch = vi.fn().mockImplementation(() => {
+      const callNumber = fetch.mock.calls.length;
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            new TextEncoder().encode(
+              `data: {"choices":[{"delta":{"content":"Chunk ${callNumber}"},"finish_reason":"stop"}]}\n\n`,
+            ),
+          );
+          controller.close();
+        },
+      });
+
+      return Promise.resolve(new Response(stream, { status: 200 }));
+    });
+    vi.stubGlobal("fetch", fetch);
+    vi.stubGlobal("crypto", { randomUUID: () => "request-id" });
+    const deltas: string[] = [];
+    const chunkStarts: string[] = [];
+
+    await transformLongText(
+      {
+        operation: "polish",
+        text: `${"A".repeat(8_500)}\n\n${"B".repeat(8_500)}`,
+        instruction: "",
+      },
+      {
+        signal: new AbortController().signal,
+        onDelta: (text) => deltas.push(text),
+        onChunkStart: (index, count) => chunkStarts.push(`${index + 1}/${count}`),
+      },
+      {
+        providerSettings: {
+          mode: "openai-compatible",
+          baseUrl: "https://example.test/v1",
+          apiKey: "user-key",
+          model: "custom-model",
+        },
+      },
+    );
+
+    expect(fetch).toHaveBeenCalledTimes(4);
+    expect(deltas.join("")).toContain("Chunk 1");
+    expect(deltas.join("")).toContain("Chunk 4");
+    expect(chunkStarts).toEqual(["1/4", "2/4", "3/4", "4/4"]);
+  });
+
+  it("rejects selections above the long document limit", async () => {
+    await expect(
+      transformLongText(
+        {
+          operation: "summarize",
+          text: "A".repeat(60_001),
+          instruction: "",
+        },
+        { signal: new AbortController().signal, onDelta: () => undefined },
+        {
+          providerSettings: {
+            mode: "openai-compatible",
+            baseUrl: "https://example.test/v1",
+            apiKey: "user-key",
+            model: "custom-model",
+          },
+        },
+      ),
+    ).rejects.toMatchObject({ code: "SELECTION_TOO_LONG" });
   });
 });

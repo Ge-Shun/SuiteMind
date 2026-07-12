@@ -43,7 +43,9 @@ Provider settings are entered at runtime, not in `.env` files:
 Provider, API base URL, and model are stored in local storage. The API key stays
 only in the current task pane's memory and must be entered again after a reload
 or restart. Loading settings from an older version removes any previously saved
-key.
+key. The task pane offers provider-specific model presets while still allowing a
+custom model name. Provider URLs are normalized on blur, must use HTTPS, and may
+use HTTP only for localhost testing.
 
 ## Local Provider Proxy
 
@@ -94,9 +96,40 @@ npm run stop:word
 npm run format:check
 npm run typecheck
 npm test
+npm run e2e:word
 npm run build
 npm run validate:manifest -w @suitemind/word-addin
 ```
+
+## Browser E2E
+
+The Word add-in has Playwright coverage for the browser task pane with
+`mockOffice=1`. The E2E runner starts a Vite test-mode server and a local fake
+OpenAI-compatible streaming provider, so it does not require Word or a real API
+key. It uses the installed Google Chrome browser by default.
+
+```powershell
+npm run e2e:word
+```
+
+The fake provider is also available directly for manual browser testing:
+
+```powershell
+npm run fake-provider -w @suitemind/word-addin
+```
+
+## Manual Word Regression
+
+Before a beta release, validate the add-in in Word desktop and Word on the web:
+
+- provider authentication, direct CORS, and local proxy fallback;
+- ask, copy answer, and insert below;
+- polish, rewrite, translate, summarize, continue, and custom edit;
+- long selections that trigger chunked generation;
+- replace and insert with Word Undo;
+- stale-source rejection after editing the original selection during generation;
+- multi-paragraph insert-below style inheritance;
+- Chinese, English, and mixed-language text.
 
 ## Security Boundary
 
@@ -112,7 +145,18 @@ npm run validate:manifest -w @suitemind/word-addin
 ## Current Formatting Boundary
 
 Replacement operates on text ranges and cannot preserve every mixed inline
-formatting run. Insert-below inherits the source paragraph style. Formatting-
-aware OOXML or content-control editing remains a later enhancement.
+formatting run. Insert-below splits multi-paragraph results into Word paragraphs
+and applies the source paragraph style to each inserted paragraph. In real Word,
+insert-below wraps inserted paragraphs in `SuiteMind Draft` content controls so
+the draft blocks are visible and can be located later. Formatting-aware OOXML
+editing remains a later enhancement.
+
+## Current Long-Text Boundary
+
+Single provider calls are kept under 10,000 characters. Longer selections are
+processed client-side in chunks up to a 60,000 character selection limit. Ask
+and summarize use a chunk-and-combine flow, editing and translation actions
+process chunks independently, and continue writing uses the end of the selected
+text as context.
 
 The manifest requires `WordApi 1.3`.

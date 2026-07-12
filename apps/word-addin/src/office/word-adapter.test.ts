@@ -8,11 +8,19 @@ interface FakeParagraph {
   style: string;
   tracked: boolean;
   insertedParagraph: FakeParagraph | null;
+  contentControl: FakeContentControl | null;
   load: ReturnType<typeof vi.fn>;
   track: ReturnType<typeof vi.fn>;
   untrack: ReturnType<typeof vi.fn>;
   insertText: ReturnType<typeof vi.fn>;
   insertParagraph: ReturnType<typeof vi.fn>;
+  insertContentControl: ReturnType<typeof vi.fn>;
+}
+
+interface FakeContentControl {
+  title: string;
+  tag: string;
+  appearance: string;
 }
 
 interface FakeRange {
@@ -37,6 +45,7 @@ function createParagraph(text: string, style: string): FakeParagraph {
     style,
     tracked: false,
     insertedParagraph: null,
+    contentControl: null,
     load: vi.fn(),
     track: vi.fn(() => {
       paragraph.tracked = true;
@@ -54,6 +63,11 @@ function createParagraph(text: string, style: string): FakeParagraph {
       const inserted = createParagraph(value, "");
       paragraph.insertedParagraph = inserted;
       return inserted;
+    }),
+    insertContentControl: vi.fn(() => {
+      const contentControl = { title: "", tag: "", appearance: "" };
+      paragraph.contentControl = contentControl;
+      return contentControl;
     }),
   };
 
@@ -118,6 +132,9 @@ function installFakeWord(initialRange: FakeRange) {
   );
 
   vi.stubGlobal("Word", {
+    ContentControlAppearance: {
+      boundingBox: "BoundingBox",
+    },
     InsertLocation: {
       after: "After",
       replace: "Replace",
@@ -163,6 +180,32 @@ describe("WordOfficeAdapter", () => {
 
     expect(original.insertParagraph).toHaveBeenCalledWith("Inserted text", "After");
     expect(original.insertedParagraph?.style).toBe("Heading 2");
+    expect(original.insertedParagraph?.contentControl).toMatchObject({
+      appearance: "BoundingBox",
+      tag: "suitemind-draft",
+      title: "SuiteMind Draft",
+    });
+  });
+
+  it("inserts multi-paragraph results as styled Word paragraphs", async () => {
+    const original = createRange("Original text", "Quote");
+    installFakeWord(original);
+    const adapter = new WordOfficeAdapter();
+    const snapshot = await adapter.readSelection();
+
+    await adapter.apply(snapshot, "First paragraph\n\nSecond paragraph", "insert");
+
+    expect(original.insertParagraph).toHaveBeenCalledWith("First paragraph", "After");
+    expect(original.insertedParagraph?.style).toBe("Quote");
+    expect(original.insertedParagraph?.insertParagraph).toHaveBeenCalledWith(
+      "Second paragraph",
+      "After",
+    );
+    expect(original.insertedParagraph?.insertedParagraph?.style).toBe("Quote");
+    expect(original.insertedParagraph?.contentControl?.tag).toBe("suitemind-draft");
+    expect(original.insertedParagraph?.insertedParagraph?.contentControl?.tag).toBe(
+      "suitemind-draft",
+    );
   });
 
   it("cannot apply a snapshot after it is released", async () => {

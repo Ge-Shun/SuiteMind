@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+  getProviderBaseUrlIssue,
   loadProviderSettings,
+  normalizeProviderBaseUrl,
   PROVIDER_SETTINGS_STORAGE_KEY,
   saveProviderSettings,
 } from "./provider-settings";
@@ -68,5 +70,16 @@ describe("provider settings storage", () => {
     expect(
       JSON.parse(window.localStorage.getItem(PROVIDER_SETTINGS_STORAGE_KEY) ?? "{}"),
     ).toMatchObject({ mode: "openai" });
+  });
+
+  it("normalizes provider base URLs", () => {
+    expect(normalizeProviderBaseUrl("api.example.com/v1/")).toBe(
+      "https://api.example.com/v1",
+    );
+  });
+
+  it("allows HTTP only for local provider testing", () => {
+    expect(getProviderBaseUrlIssue("http://127.0.0.1:3002/v1")).toBeNull();
+    expect(getProviderBaseUrlIssue("http://provider.example/v1")).toBe("insecure");
   });
 });

@@ -1,4 +1,8 @@
-import type { TransformRequest, TransformStreamEvent } from "@suitemind/contracts";
+import {
+  transformRequestSchema,
+  type TransformRequest,
+  type TransformStreamEvent,
+} from "@suitemind/contracts";
 
 import { normalizeProviderSettings, type ProviderSettings } from "./provider-settings";
 
@@ -7,6 +11,9 @@ const LOCAL_PROVIDER_PROXY_URL =
   "https://localhost:3001/api/provider/chat/completions";
 const LOCAL_PROXY_UNAVAILABLE_MESSAGE =
   "Direct provider access was blocked and the local proxy is unavailable. Run npm run proxy:local on this computer.";
+const MAX_SINGLE_REQUEST_CHARACTERS = 10_000;
+const MAX_LONG_REQUEST_CHARACTERS = 60_000;
+const CHUNK_TARGET_CHARACTERS = 8_000;
 
 export class SuiteMindApiError extends Error {
   readonly code: string;
@@ -24,10 +31,22 @@ interface TransformOptions {
   providerSettings: ProviderSettings;
 }
 
+export type ProviderTransport = "direct" | "local-proxy";
+
+export interface ProviderConnectionResult {
+  transport: ProviderTransport;
+  receivedText: boolean;
+}
+
 interface TransformCallbacks {
   signal: AbortSignal;
   onDelta: (text: string) => void;
   onDone?: (event: Extract<TransformStreamEvent, { type: "done" }>) => void;
+  onTransport?: (transport: ProviderTransport) => void;
+}
+
+interface LongTransformCallbacks extends TransformCallbacks {
+  onChunkStart?: (chunkIndex: number, chunkCount: number) => void;
 }
 
 async function readErrorResponse(response: Response): Promise<SuiteMindApiError> {
@@ -198,11 +217,23 @@ function readSseData(block: string): string | null {
   return data || null;
 }
 
+function parseProviderJson<T>(data: string, provider: string): T {
+  try {
+    return JSON.parse(data) as T;
+  } catch {
+    throw new SuiteMindApiError(
+      "PROVIDER_STREAM_PARSE_ERROR",
+      `${provider} returned a malformed streaming event.`,
+      true,
+    );
+  }
+}
+
 async function fetchOpenAiCompatible(
   endpoint: string,
   apiKey: string,
   body: string,
-  signal: AbortSignal,
+  callbacks: TransformCallbacks,
 ): Promise<Response> {
   const headers = {
     Accept: "text/event-stream",
@@ -211,29 +242,33 @@ async function fetchOpenAiCompatible(
   };
 
   try {
-    return await fetch(endpoint, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers,
       body,
-      signal,
+      signal: callbacks.signal,
     });
+    callbacks.onTransport?.("direct");
+    return response;
   } catch (directError) {
-    if (signal.aborted) {
+    if (callbacks.signal.aborted) {
       throw directError;
     }
 
     try {
-      return await fetch(LOCAL_PROVIDER_PROXY_URL, {
+      const response = await fetch(LOCAL_PROVIDER_PROXY_URL, {
         method: "POST",
         headers: {
           ...headers,
           "X-SuiteMind-Target-Url": endpoint,
         },
         body,
-        signal,
+        signal: callbacks.signal,
       });
+      callbacks.onTransport?.("local-proxy");
+      return response;
     } catch (proxyError) {
-      if (signal.aborted) {
+      if (callbacks.signal.aborted) {
         throw proxyError;
       }
 
@@ -271,7 +306,7 @@ async function transformWithOpenAiCompatible(
     endpoint,
     normalized.apiKey,
     body,
-    callbacks.signal,
+    callbacks,
   );
 
   await readProviderStream(response, callbacks, (block) => {
@@ -283,12 +318,12 @@ async function transformWithOpenAiCompatible(
       return true;
     }
 
-    const parsed = JSON.parse(data) as {
+    const parsed = parseProviderJson<{
       choices?: Array<{
         delta?: { content?: string };
         finish_reason?: string | null;
       }>;
-    };
+    }>(data, "OpenAI-compatible provider");
     const choice = parsed.choices?.[0];
     const text = choice?.delta?.content;
 
@@ -332,7 +367,7 @@ async function transformWithOpenAiResponses(
       // Word selections are sensitive document content, so do not retain server-side state.
       store: false,
     }),
-    callbacks.signal,
+    callbacks,
   );
 
   await readProviderStream(response, callbacks, (block) => {
@@ -340,7 +375,7 @@ async function transformWithOpenAiResponses(
 
     if (!data) return false;
 
-    const parsed = JSON.parse(data) as {
+    const parsed = parseProviderJson<{
       type?: string;
       delta?: string;
       response?: {
@@ -349,7 +384,7 @@ async function transformWithOpenAiResponses(
         error?: { code?: string; message?: string };
       };
       error?: { code?: string; message?: string };
-    };
+    }>(data, "OpenAI Responses API");
 
     if (parsed.type === "response.output_text.delta" && parsed.delta) {
       callbacks.onDelta(parsed.delta);
@@ -417,16 +452,26 @@ async function transformWithClaude(
     }),
     signal: callbacks.signal,
   });
+  callbacks.onTransport?.("direct");
 
   await readProviderStream(response, callbacks, (block) => {
     const data = readSseData(block);
 
     if (!data) return false;
 
-    const parsed = JSON.parse(data) as {
+    const parsed = parseProviderJson<{
       type?: string;
       delta?: { text?: string };
-    };
+      error?: { type?: string; message?: string };
+    }>(data, "Claude");
+
+    if (parsed.type === "error") {
+      throw new SuiteMindApiError(
+        parsed.error?.type ?? "CLAUDE_STREAM_ERROR",
+        parsed.error?.message ?? "Claude returned a streaming error.",
+        true,
+      );
+    }
 
     if (parsed.type === "content_block_delta" && parsed.delta?.text) {
       callbacks.onDelta(parsed.delta.text);
@@ -463,13 +508,13 @@ async function transformWithGemini(
     )}:streamGenerateContent`,
   );
   url.searchParams.set("alt", "sse");
-  url.searchParams.set("key", normalized.apiKey);
 
   const response = await fetch(url, {
     method: "POST",
     headers: {
       Accept: "text/event-stream",
       "Content-Type": "application/json",
+      "x-goog-api-key": normalized.apiKey,
     },
     body: JSON.stringify({
       systemInstruction: {
@@ -484,6 +529,7 @@ async function transformWithGemini(
     }),
     signal: callbacks.signal,
   });
+  callbacks.onTransport?.("direct");
 
   let receivedText = false;
 
@@ -493,12 +539,21 @@ async function transformWithGemini(
 
       if (!data) return false;
 
-      const parsed = JSON.parse(data) as {
+      const parsed = parseProviderJson<{
         candidates?: Array<{
           content?: { parts?: Array<{ text?: string }> };
           finishReason?: string;
         }>;
-      };
+        error?: { code?: number; message?: string; status?: string };
+      }>(data, "Gemini");
+
+      if (parsed.error) {
+        throw new SuiteMindApiError(
+          parsed.error.status ?? String(parsed.error.code ?? "GEMINI_STREAM_ERROR"),
+          parsed.error.message ?? "Gemini returned a streaming error.",
+          true,
+        );
+      }
       const candidate = parsed.candidates?.[0];
       const text = candidate?.content?.parts?.map((part) => part.text ?? "").join("");
 
@@ -553,5 +608,259 @@ export async function transformText(
   callbacks: TransformCallbacks,
   options: TransformOptions,
 ): Promise<void> {
-  return transformWithDirectProvider(request, callbacks, options.providerSettings);
+  const parsedRequest = transformRequestSchema.safeParse(request);
+
+  if (!parsedRequest.success) {
+    throw new SuiteMindApiError(
+      "INVALID_REQUEST",
+      parsedRequest.error.issues[0]?.message ?? "The transform request is invalid.",
+      false,
+    );
+  }
+
+  return transformWithDirectProvider(
+    parsedRequest.data,
+    callbacks,
+    options.providerSettings,
+  );
+}
+
+function splitTextIntoChunks(text: string): string[] {
+  if (text.length <= MAX_SINGLE_REQUEST_CHARACTERS) {
+    return [text];
+  }
+
+  const chunks: string[] = [];
+  const paragraphs = text.split(/\n{2,}/);
+  let current = "";
+
+  for (const part of paragraphs) {
+    if (!part) continue;
+
+    if (current && current.length + part.length > CHUNK_TARGET_CHARACTERS) {
+      chunks.push(current);
+      current = "";
+    }
+
+    if (part.length <= CHUNK_TARGET_CHARACTERS) {
+      current += part;
+      continue;
+    }
+
+    const sentences = part.split(/(?<=[.!?。！？；;])\s+/u);
+
+    for (const sentence of sentences) {
+      if (!sentence) continue;
+
+      if (current && current.length + sentence.length > CHUNK_TARGET_CHARACTERS) {
+        chunks.push(current);
+        current = "";
+      }
+
+      if (sentence.length <= CHUNK_TARGET_CHARACTERS) {
+        current += sentence;
+        continue;
+      }
+
+      for (let index = 0; index < sentence.length; index += CHUNK_TARGET_CHARACTERS) {
+        if (current) {
+          chunks.push(current);
+          current = "";
+        }
+
+        chunks.push(sentence.slice(index, index + CHUNK_TARGET_CHARACTERS));
+      }
+    }
+  }
+
+  if (current) {
+    chunks.push(current);
+  }
+
+  return chunks;
+}
+
+function withChunkInstruction(
+  request: TransformRequest,
+  chunkIndex: number,
+  chunkCount: number,
+): TransformRequest {
+  const prefix = `This is chunk ${chunkIndex + 1} of ${chunkCount}. Process only this chunk.`;
+  const instruction = request.instruction
+    ? `${prefix}\n\n${request.instruction}`
+    : prefix;
+
+  return {
+    ...request,
+    instruction,
+  };
+}
+
+async function transformChunksIndependently(
+  request: TransformRequest,
+  callbacks: LongTransformCallbacks,
+  options: TransformOptions,
+  chunks: string[],
+): Promise<void> {
+  for (const [index, chunk] of chunks.entries()) {
+    callbacks.onChunkStart?.(index, chunks.length);
+
+    if (index > 0) {
+      callbacks.onDelta("\n\n");
+    }
+
+    await transformText(
+      {
+        ...withChunkInstruction(request, index, chunks.length),
+        text: chunk,
+      },
+      callbacks,
+      options,
+    );
+  }
+}
+
+async function reduceChunkedContext(
+  request: TransformRequest,
+  callbacks: LongTransformCallbacks,
+  options: TransformOptions,
+  chunks: string[],
+): Promise<void> {
+  const intermediateResults: string[] = [];
+
+  for (const [index, chunk] of chunks.entries()) {
+    callbacks.onChunkStart?.(index, chunks.length);
+    let chunkResult = "";
+    const chunkInstruction =
+      request.operation === "ask"
+        ? `Question: ${request.instruction}\n\nExtract only information from this chunk that helps answer the question. If the chunk has no relevant information, reply exactly: NO_RELEVANT_CONTEXT.`
+        : "Summarize only this chunk, preserving concrete claims, decisions, numbers, and qualifications.";
+
+    await transformText(
+      {
+        ...request,
+        operation: request.operation === "ask" ? "ask" : "summarize",
+        text: chunk,
+        instruction: chunkInstruction,
+        targetLanguage: null,
+      },
+      {
+        ...callbacks,
+        onDelta: (text) => {
+          chunkResult += text;
+        },
+      },
+      options,
+    );
+
+    const normalized = chunkResult.trim();
+
+    if (normalized && normalized !== "NO_RELEVANT_CONTEXT") {
+      intermediateResults.push(`Chunk ${index + 1}: ${normalized}`);
+    }
+  }
+
+  if (!intermediateResults.length) {
+    throw new SuiteMindApiError(
+      "EMPTY_PROVIDER_RESULT",
+      "The AI provider returned an empty result.",
+      true,
+    );
+  }
+
+  callbacks.onChunkStart?.(chunks.length, chunks.length);
+
+  await transformText(
+    {
+      ...request,
+      text: intermediateResults.join("\n\n").slice(0, MAX_SINGLE_REQUEST_CHARACTERS),
+      instruction:
+        request.operation === "ask"
+          ? `Answer the original question using only these chunk-level notes.\n\nQuestion:\n${request.instruction}`
+          : request.instruction
+            ? `Combine these chunk summaries into one concise summary.\n\n${request.instruction}`
+            : "Combine these chunk summaries into one concise summary.",
+      targetLanguage: null,
+    },
+    callbacks,
+    options,
+  );
+}
+
+export async function transformLongText(
+  request: TransformRequest,
+  callbacks: LongTransformCallbacks,
+  options: TransformOptions,
+): Promise<void> {
+  if (request.text.length > MAX_LONG_REQUEST_CHARACTERS) {
+    throw new SuiteMindApiError(
+      "SELECTION_TOO_LONG",
+      `The selection is longer than ${MAX_LONG_REQUEST_CHARACTERS.toLocaleString(
+        "en",
+      )} characters.`,
+      false,
+    );
+  }
+
+  if (request.text.length <= MAX_SINGLE_REQUEST_CHARACTERS) {
+    return transformText(request, callbacks, options);
+  }
+
+  if (request.operation === "continue") {
+    return transformText(
+      {
+        ...request,
+        text: request.text.slice(-MAX_SINGLE_REQUEST_CHARACTERS),
+        instruction: request.instruction
+          ? `Continue from the end of this long selection.\n\n${request.instruction}`
+          : "Continue from the end of this long selection.",
+      },
+      callbacks,
+      options,
+    );
+  }
+
+  const chunks = splitTextIntoChunks(request.text);
+
+  if (request.operation === "ask" || request.operation === "summarize") {
+    return reduceChunkedContext(request, callbacks, options, chunks);
+  }
+
+  return transformChunksIndependently(request, callbacks, options, chunks);
+}
+
+export async function testProviderConnection(
+  providerSettings: ProviderSettings,
+  signal: AbortSignal,
+): Promise<ProviderConnectionResult> {
+  let transport: ProviderTransport = "direct";
+  let receivedText = false;
+
+  await transformText(
+    {
+      operation: "ask",
+      text: "SuiteMind provider connection test.",
+      instruction: "Reply with OK only.",
+    },
+    {
+      signal,
+      onDelta: (text) => {
+        receivedText = receivedText || Boolean(text.trim());
+      },
+      onTransport: (nextTransport) => {
+        transport = nextTransport;
+      },
+    },
+    { providerSettings },
+  );
+
+  if (!receivedText) {
+    throw new SuiteMindApiError(
+      "EMPTY_PROVIDER_RESULT",
+      "The AI provider returned an empty result.",
+      true,
+    );
+  }
+
+  return { transport, receivedText };
 }

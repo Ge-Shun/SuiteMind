@@ -1,4 +1,4 @@
-import { diffWordsWithSpace } from "diff";
+import { diffChars, diffWordsWithSpace } from "diff";
 
 interface DiffPreviewProps {
   before: string;
@@ -15,7 +15,10 @@ export function DiffPreview({ before, after, view }: DiffPreviewProps) {
     );
   }
 
-  const changes = diffWordsWithSpace(before, after);
+  const containsCjkText = /[\u3400-\u9fff\uf900-\ufaff]/u.test(`${before}${after}`);
+  const changes = containsCjkText
+    ? diffChars(before, after)
+    : diffWordsWithSpace(before, after);
 
   return (
     <div className="preview-text diff-text" data-testid="diff-preview">

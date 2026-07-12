@@ -12,4 +12,12 @@ describe("DiffPreview", () => {
     expect(screen.getByTestId("diff-preview")).toBeInTheDocument();
     expect(container.querySelector(".diff-added")).not.toBeNull();
   });
+
+  it("uses character-level changes for Chinese text without spaces", () => {
+    const { container } = render(
+      <DiffPreview after="这是一段清晰文本" before="这是一段文本" view="diff" />,
+    );
+
+    expect(container.querySelector(".diff-added")).not.toBeNull();
+  });
 });

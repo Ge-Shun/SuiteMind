@@ -38,6 +38,9 @@ jobs:
       - name: Typecheck Word add-in
         run: npm run typecheck --workspace @suitemind/word-addin
 
+      - name: Run Word add-in browser E2E
+        run: npm run e2e:word
+
       - name: Build Word add-in for GitHub Project Pages
         env:
           VITE_ADDIN_BASE_PATH: /${{ github.event.repository.name }}/
@@ -49,6 +52,9 @@ jobs:
           SUITEMIND_ADDIN_ORIGIN: https://${{ github.repository_owner }}.github.io
           SUITEMIND_SUPPORT_URL: https://github.com/${{ github.repository }}
         run: npm run generate:production-manifest
+
+      - name: Validate production manifest
+        run: npx office-addin-manifest validate apps/word-addin/dist/manifest.xml
 
       # enablement:true lets the first run create/enable the Pages site automatically.
       - name: Configure GitHub Pages
