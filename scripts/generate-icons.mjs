@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { deflateSync } from "node:zlib";
 
 const outputDirectory = resolve("apps/word-addin/public/assets");
+const connectorIconPath = resolve("apps/desktop-connector/Assets/SuiteMind.ico");
 
 function crc32(buffer) {
   let crc = 0xffffffff;
@@ -220,8 +221,29 @@ function createIcon(size) {
 
 mkdirSync(outputDirectory, { recursive: true });
 
+const generatedIcons = new Map();
+
 for (const size of [16, 32, 80]) {
   const path = resolve(outputDirectory, `icon-${size}.png`);
+  const icon = createIcon(size);
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, createIcon(size));
+  writeFileSync(path, icon);
+  generatedIcons.set(size, icon);
 }
+
+const connectorPng = generatedIcons.get(32);
+const iconHeader = Buffer.alloc(6);
+iconHeader.writeUInt16LE(0, 0);
+iconHeader.writeUInt16LE(1, 2);
+iconHeader.writeUInt16LE(1, 4);
+
+const iconEntry = Buffer.alloc(16);
+iconEntry[0] = 32;
+iconEntry[1] = 32;
+iconEntry.writeUInt16LE(1, 4);
+iconEntry.writeUInt16LE(32, 6);
+iconEntry.writeUInt32LE(connectorPng.length, 8);
+iconEntry.writeUInt32LE(iconHeader.length + iconEntry.length, 12);
+
+mkdirSync(dirname(connectorIconPath), { recursive: true });
+writeFileSync(connectorIconPath, Buffer.concat([iconHeader, iconEntry, connectorPng]));

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildPrompt,
+  checkLocalConnector,
   testProviderConnection,
   transformLongText,
   transformText,
@@ -9,6 +10,32 @@ import {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe("desktop connector detection", () => {
+  it("detects a ready SuiteMind desktop connector", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ status: "ready" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+      ),
+    );
+
+    await expect(checkLocalConnector()).resolves.toBe(true);
+  });
+
+  it("reports an unavailable connector when the health request fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Promise.reject(new TypeError("offline"))),
+    );
+
+    await expect(checkLocalConnector()).resolves.toBe(false);
+  });
 });
 
 describe("direct provider transforms", () => {

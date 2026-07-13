@@ -36,6 +36,7 @@ import {
   StaleSelectionError,
 } from "./office";
 import {
+  checkLocalConnector,
   SuiteMindApiError,
   testProviderConnection,
   transformLongText,
@@ -55,6 +56,9 @@ import {
 import type { AppPhase, ApplyMode, SelectionSnapshot } from "./types";
 
 const icon32Url = `${import.meta.env.BASE_URL}assets/icon-32.png`;
+const connectorDownloadUrl = `${import.meta.env.BASE_URL}downloads/SuiteMind-Connector-win-x64.zip`;
+
+type ConnectorStatus = "checking" | "ready" | "unavailable";
 
 type StatusMessage =
   { type: "key"; key: StatusMessageKey } | { type: "error"; error: unknown };
@@ -64,7 +68,7 @@ const knownErrorMessages: Record<string, ErrorMessageKey> = {
   "The AI provider returned an empty result.": "emptyProvider",
   "The AI provider returned no response body.": "emptyResponse",
   "The AI provider stream ended before completion.": "incompleteStream",
-  "Direct provider access was blocked and the local proxy is unavailable. Run npm run proxy:local on this computer.":
+  "Direct provider access was blocked and SuiteMind Connector is unavailable.":
     "localProxyUnavailable",
   "Microsoft Office.js did not load in time.": "officeJsTimeout",
   "Microsoft Office.js could not be loaded.": "officeJsLoad",
@@ -124,6 +128,7 @@ export default function App() {
   const [generationComplete, setGenerationComplete] = useState(false);
   const [previewView, setPreviewView] = useState<PreviewView>("diff");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [connectorStatus, setConnectorStatus] = useState<ConnectorStatus>("checking");
   const [providerSettings, setProviderSettings] =
     useState<ProviderSettings>(loadProviderSettings);
   const abortRef = useRef<AbortController | null>(null);
@@ -186,6 +191,11 @@ export default function App() {
     setSettingsOpen((open) => !open);
   }
 
+  async function refreshConnectorStatus() {
+    setConnectorStatus("checking");
+    setConnectorStatus((await checkLocalConnector()) ? "ready" : "unavailable");
+  }
+
   function chooseEditingOperation(
     nextOperation: Exclude<TransformOperation, "ask" | "custom">,
   ) {
@@ -202,6 +212,12 @@ export default function App() {
   useEffect(() => {
     saveProviderSettings(providerSettings);
   }, [providerSettings]);
+
+  useEffect(() => {
+    if (settingsOpen) {
+      void refreshConnectorStatus();
+    }
+  }, [settingsOpen]);
 
   useEffect(() => {
     let active = true;
@@ -556,6 +572,41 @@ export default function App() {
             </div>
 
             <div className="settings-panel">
+              <section className="connector-panel" aria-label={text.connectorTitle}>
+                <div className="connector-summary">
+                  <span
+                    aria-hidden="true"
+                    className="connector-status-dot"
+                    data-status={connectorStatus}
+                  />
+                  <div>
+                    <strong>{text.connectorTitle}</strong>
+                    <span>{text.connectorStatuses[connectorStatus]}</span>
+                  </div>
+                </div>
+                <div className="connector-actions">
+                  {connectorStatus === "unavailable" && (
+                    <>
+                      <a className="connector-link primary" href="suitemind://start">
+                        {text.startConnector}
+                      </a>
+                      <a className="connector-link" href={connectorDownloadUrl}>
+                        {text.downloadConnector}
+                      </a>
+                    </>
+                  )}
+                  <button
+                    className="connector-refresh-button"
+                    disabled={connectorStatus === "checking"}
+                    onClick={() => void refreshConnectorStatus()}
+                    type="button"
+                  >
+                    <RefreshCw size={14} />
+                    {text.retryConnector}
+                  </button>
+                </div>
+              </section>
+
               <label className="field-label">
                 <span>{text.providerMode}</span>
                 <select

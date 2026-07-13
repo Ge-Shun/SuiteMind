@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 import { UI_LANGUAGE_STORAGE_KEY } from "./i18n";
-import { testProviderConnection } from "./services/api";
+import { checkLocalConnector, testProviderConnection } from "./services/api";
 import { PROVIDER_SETTINGS_STORAGE_KEY } from "./services/provider-settings";
 
 vi.mock("./office", () => ({
@@ -29,6 +29,7 @@ vi.mock("./services/api", () => ({
       this.retryable = retryable;
     }
   },
+  checkLocalConnector: vi.fn(async () => false),
   testProviderConnection: vi.fn(),
   transformLongText: vi.fn(),
 }));
@@ -39,6 +40,7 @@ describe("App language switcher", () => {
   });
 
   beforeEach(() => {
+    vi.mocked(checkLocalConnector).mockResolvedValue(false);
     window.localStorage.clear();
     window.localStorage.setItem(UI_LANGUAGE_STORAGE_KEY, "en");
   });
@@ -166,5 +168,24 @@ describe("App language switcher", () => {
       ),
     );
     expect(testProviderConnection).toHaveBeenCalled();
+  });
+
+  it("shows connector recovery actions when the desktop connector is unavailable", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Model settings" }));
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("Not running. Start it or download the Windows connector."),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("link", { name: "Start connector" })).toHaveAttribute(
+      "href",
+      "suitemind://start",
+    );
+    expect(screen.getByRole("link", { name: "Download" })).toHaveAttribute(
+      "href",
+      "/downloads/SuiteMind-Connector-win-x64.zip",
+    );
   });
 });

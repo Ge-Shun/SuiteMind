@@ -84,12 +84,15 @@ provider settings may persist without the key.
 The add-in uses OpenAI Responses by default, while OpenAI-compatible and
 DeepSeek providers use Chat Completions for compatibility. If the browser or
 Office WebView blocks an OpenAI-family request, the add-in automatically retries
-through the local HTTPS proxy at `https://localhost:3001`. The user must run
-`npm run proxy:local` on the same computer while generating, after running
-`npm run proxy:certs` once to install the trusted localhost certificate. Before
-starting the proxy for a GitHub Pages deployment, set
-`SUITEMIND_PROXY_ALLOWED_ORIGINS` to `https://ge-shun.github.io`. Claude and
-Gemini keep their provider-specific direct browser integrations.
+through SuiteMind Connector at `https://localhost:3001`. Windows users download
+the connector from the production installation page and run it as a tray
+application. It creates its current-user localhost certificate on first launch.
+
+Developers can instead run `npm run proxy:local` after installing development
+certificates with `npm run proxy:certs`. Before starting the Node.js proxy for a
+GitHub Pages deployment, set `SUITEMIND_PROXY_ALLOWED_ORIGINS` to
+`https://ge-shun.github.io`. Claude and Gemini keep their provider-specific
+direct browser integrations.
 
 ## Release Checks
 

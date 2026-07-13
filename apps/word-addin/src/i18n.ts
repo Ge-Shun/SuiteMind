@@ -5,6 +5,7 @@ import type { ProviderBaseUrlIssue } from "./services/provider-settings";
 
 export type UiLanguage = "en" | "zh-CN";
 export type PreviewView = "diff" | "before" | "after";
+export type ConnectorStatus = "checking" | "ready" | "unavailable";
 
 export const UI_LANGUAGE_STORAGE_KEY = "suitemind-ui-language";
 
@@ -109,6 +110,11 @@ export interface AppStrings {
   expandProviderSettings: string;
   collapseProviderSettings: string;
   apiKeyStorageNotice: string;
+  connectorTitle: string;
+  connectorStatuses: Record<ConnectorStatus, string>;
+  startConnector: string;
+  downloadConnector: string;
+  retryConnector: string;
   characterCount: (count: number) => string;
 }
 
@@ -179,7 +185,7 @@ export const translations: Record<UiLanguage, AppStrings> = {
       emptyResponse: "The AI provider returned no response body.",
       incompleteStream: "The AI provider stream ended before completion.",
       localProxyUnavailable:
-        "Direct provider access was blocked and the local proxy is unavailable. Run npm run proxy:local on this computer.",
+        "Direct provider access was blocked. Install or start SuiteMind Connector, then try again.",
       providerSettingsRequiredError:
         "Complete the API base URL, API key, and model in Model settings.",
       invalidRequest: "The request is invalid. Check the selected action and inputs.",
@@ -242,6 +248,15 @@ export const translations: Record<UiLanguage, AppStrings> = {
     collapseProviderSettings: "Collapse provider settings",
     apiKeyStorageNotice:
       "Your API key stays only in this task pane session and is removed when the pane reloads or closes. It is sent to the selected provider directly or through the temporary local proxy, and is never sent to a SuiteMind server.",
+    connectorTitle: "Desktop connector",
+    connectorStatuses: {
+      checking: "Checking local connection...",
+      ready: "Ready for requests that require local forwarding.",
+      unavailable: "Not running. Start it or download the Windows connector.",
+    },
+    startConnector: "Start connector",
+    downloadConnector: "Download",
+    retryConnector: "Check again",
     characterCount: (count) => `${count.toLocaleString("en")} chars`,
   },
   "zh-CN": {
@@ -303,7 +318,7 @@ export const translations: Record<UiLanguage, AppStrings> = {
       emptyResponse: "AI 服务未返回响应内容。",
       incompleteStream: "AI 服务的流式响应在完成前中断。",
       localProxyUnavailable:
-        "模型接口禁止浏览器直连，且本地代理未运行。请在此电脑上运行 npm run proxy:local。",
+        "模型接口禁止浏览器直连。请安装或启动 SuiteMind 桌面连接器，然后重试。",
       providerSettingsRequiredError:
         "请在模型配置中填写完整的接口地址、API Key 和模型。",
       invalidRequest: "请求无效，请检查当前操作和输入内容。",
@@ -364,6 +379,15 @@ export const translations: Record<UiLanguage, AppStrings> = {
     collapseProviderSettings: "收起服务提供方配置",
     apiKeyStorageNotice:
       "API Key 仅保留在当前任务窗格会话中，刷新或关闭后会自动清除。Key 会直接发送给模型服务商，或经临时本地代理转发，不会发送到 SuiteMind 服务器。",
+    connectorTitle: "桌面连接器",
+    connectorStatuses: {
+      checking: "正在检查本地连接...",
+      ready: "连接正常，可处理需要本地转发的模型请求。",
+      unavailable: "未运行，请启动或下载 Windows 连接器。",
+    },
+    startConnector: "启动连接器",
+    downloadConnector: "下载",
+    retryConnector: "重新检测",
     characterCount: (count) => `${count.toLocaleString("zh-CN")} 字符`,
   },
 };

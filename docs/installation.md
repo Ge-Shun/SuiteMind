@@ -75,3 +75,22 @@ Installation and model connectivity are separate. Some providers block direct
 requests from Office webviews through CORS. The add-in can use the optional
 localhost proxy for supported providers, as described in
 [`deployment.md`](deployment.md#cors-limitation).
+
+### Windows Connector
+
+When direct access is blocked, download the optional Windows connector from the
+installation page. Extract the ZIP and run `SuiteMindConnector.exe`.
+
+On first launch, the connector:
+
+- creates and trusts a certificate for `https://localhost:3001` in the current
+  Windows user profile;
+- registers the `suitemind://` protocol so the Word task pane can start it;
+- starts a tray application that forwards only supported provider endpoints;
+- accepts requests only from the SuiteMind production origin and local
+  development origins;
+- does not persist API keys, document text, requests, or responses.
+
+Use the tray menu to enable **Start with Windows**, check status, or exit the
+connector. See [`connector-security.md`](connector-security.md) for the security
+boundary.

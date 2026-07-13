@@ -41,3 +41,20 @@ jobs:
 
       - name: Validate Office manifest
         run: npm run validate:manifest -w @suitemind/word-addin
+
+  connector:
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build Windows connector
+        shell: pwsh
+        run: ./scripts/publish-connector.ps1

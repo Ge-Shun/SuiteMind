@@ -45,8 +45,11 @@ the key is never written to local storage, committed to the repository, or sent
 to a SuiteMind server.
 
 Direct provider calls require browser/Office WebView CORS support. A valid key
-can still fail when a provider blocks cross-origin requests. An OpenAI or
-OpenAI-compatible provider that blocks CORS can use the temporary local proxy:
+can still fail when a provider blocks cross-origin requests. Windows users can
+install the optional SuiteMind Connector from the production installation page.
+It runs in the system tray and forwards supported provider requests locally.
+
+Developers can still run the Node.js proxy while working from source:
 
 ```powershell
 npm run proxy:certs
@@ -57,10 +60,9 @@ For the GitHub Pages deployment, set `SUITEMIND_PROXY_ALLOWED_ORIGINS` to
 `https://ge-shun.github.io` before starting the proxy.
 
 The add-in first tries the provider directly and automatically falls back to
-`https://localhost:3001` when direct browser access fails. The proxy runs only
-on the current computer, accepts requests only from configured origins, and does
-not persist or log the API key. The certificate installation command is required
-only once per computer.
+`https://localhost:3001` when direct browser access fails. The connector runs
+only on the current computer, accepts requests only from configured origins,
+and does not persist or log the API key, document text, or model response.
 
 ## Product Principles
 

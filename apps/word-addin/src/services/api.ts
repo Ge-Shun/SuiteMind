@@ -9,8 +9,9 @@ import { normalizeProviderSettings, type ProviderSettings } from "./provider-set
 const LOCAL_PROVIDER_PROXY_URL =
   import.meta.env.VITE_LOCAL_PROVIDER_PROXY_URL ??
   "https://localhost:3001/api/provider/chat/completions";
+export const LOCAL_CONNECTOR_HEALTH_URL = "https://localhost:3001/health";
 const LOCAL_PROXY_UNAVAILABLE_MESSAGE =
-  "Direct provider access was blocked and the local proxy is unavailable. Run npm run proxy:local on this computer.";
+  "Direct provider access was blocked and SuiteMind Connector is unavailable.";
 const MAX_SINGLE_REQUEST_CHARACTERS = 10_000;
 const MAX_LONG_REQUEST_CHARACTERS = 60_000;
 const CHUNK_TARGET_CHARACTERS = 8_000;
@@ -36,6 +37,24 @@ export type ProviderTransport = "direct" | "local-proxy";
 export interface ProviderConnectionResult {
   transport: ProviderTransport;
   receivedText: boolean;
+}
+
+export async function checkLocalConnector(signal?: AbortSignal): Promise<boolean> {
+  try {
+    const response = await fetch(LOCAL_CONNECTOR_HEALTH_URL, {
+      headers: { Accept: "application/json" },
+      signal,
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const result = (await response.json()) as { status?: string };
+    return result.status === "ready";
+  } catch {
+    return false;
+  }
 }
 
 interface TransformCallbacks {

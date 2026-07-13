@@ -16,7 +16,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  connector:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build Windows connector
+        shell: pwsh
+        run: ./scripts/publish-connector.ps1
+
+      - name: Upload connector package
+        uses: actions/upload-artifact@v4
+        with:
+          name: suitemind-connector
+          path: artifacts/connector/SuiteMind-Connector-win-x64.zip
+          if-no-files-found: error
+
   build:
+    needs: connector
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -57,6 +80,15 @@ jobs:
         run: |
           test -f apps/word-addin/dist/install.html
           test -f apps/word-addin/dist/manifest.xml
+
+      - name: Download Windows connector
+        uses: actions/download-artifact@v4
+        with:
+          name: suitemind-connector
+          path: apps/word-addin/dist/downloads
+
+      - name: Verify connector artifact
+        run: test -f apps/word-addin/dist/downloads/SuiteMind-Connector-win-x64.zip
 
       - name: Validate production manifest
         run: npx office-addin-manifest validate apps/word-addin/dist/manifest.xml

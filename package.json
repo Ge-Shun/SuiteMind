@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
+    "build:connector": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/publish-connector.ps1",
     "dev": "npm run dev -w @suitemind/word-addin",
     "dev:word": "npm run dev -w @suitemind/word-addin",
     "e2e:word": "npm run e2e -w @suitemind/word-addin",

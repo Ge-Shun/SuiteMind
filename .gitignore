@@ -9,5 +9,9 @@ coverage/
 .vscode/
 dev-certs/
 .playwright-cli/
+.tools/
+apps/desktop-connector/bin/
+apps/desktop-connector/obj/
+artifacts/
 apps/word-addin/playwright-report/
 apps/word-addin/test-results/
