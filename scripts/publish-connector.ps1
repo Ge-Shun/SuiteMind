@@ -1,5 +1,6 @@
 param(
-  [string]$OutputDirectory = "artifacts/connector"
+  [string]$OutputDirectory = "artifacts/connector",
+  [switch]$SkipArchive
 )
 
 $ErrorActionPreference = "Stop"
@@ -8,10 +9,8 @@ $localDotnet = Join-Path $repositoryRoot ".tools/dotnet/dotnet.exe"
 $dotnet = if (Test-Path $localDotnet) { $localDotnet } else { "dotnet" }
 $project = Join-Path $repositoryRoot "apps/desktop-connector/SuiteMind.Connector.csproj"
 $publishDirectory = Join-Path $repositoryRoot "$OutputDirectory/publish"
-$archivePath = Join-Path $repositoryRoot "$OutputDirectory/SuiteMind-Connector-win-x64.zip"
 
 Remove-Item -LiteralPath $publishDirectory -Recurse -Force -ErrorAction SilentlyContinue
-Remove-Item -LiteralPath $archivePath -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $publishDirectory -Force | Out-Null
 
 & $dotnet publish $project `
@@ -29,5 +28,11 @@ if (-not (Test-Path $executablePath)) {
   throw "Published connector executable was not found."
 }
 
-Compress-Archive -Path $executablePath -DestinationPath $archivePath
-Write-Output "Created $archivePath"
+if ($SkipArchive) {
+  Write-Output "Published $executablePath"
+  exit 0
+}
+
+& (Join-Path $PSScriptRoot "package-connector.ps1") `
+  -ExecutablePath $executablePath `
+  -ArchivePath (Join-Path $repositoryRoot "$OutputDirectory/SuiteMind-Connector-win-x64.zip")

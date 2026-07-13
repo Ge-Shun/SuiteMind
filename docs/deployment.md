@@ -26,6 +26,48 @@ Share the installation page with users. Do not share the development manifest,
 which points to localhost. Detailed user instructions live in
 [`installation.md`](installation.md).
 
+## Connector Code Signing
+
+The Pages workflow supports Authenticode signing through SignPath before the
+Windows connector ZIP is created. This is the recommended route for this public
+repository because SignPath offers a free program for approved open-source
+projects and keeps the signing key outside GitHub.
+
+For an individual maintainer, the free open-source certificate displays
+**SignPath Foundation** as the Windows publisher. Displaying the maintainer's
+personal legal name instead requires a paid, identity-validated individual code
+signing certificate and a compatible cloud or hardware signing service.
+
+To enable SignPath signing:
+
+1. Apply for the open-source program at
+   `https://about.signpath.io/product/open-source` and connect this GitHub
+   repository as a trusted build system.
+2. Create a SignPath project for `SuiteMind`, an artifact configuration whose
+   root is a Windows PE file, and a release signing policy that uses SHA-256
+   Authenticode signing with an RFC 3161 timestamp.
+3. Add `SIGNPATH_API_TOKEN` as a GitHub Actions repository secret.
+4. Add these GitHub Actions repository variables with the values shown in
+   SignPath:
+   - `SIGNPATH_ORGANIZATION_ID`
+   - `SIGNPATH_PROJECT_SLUG`
+   - `SIGNPATH_SIGNING_POLICY_SLUG`
+   - `SIGNPATH_ARTIFACT_CONFIGURATION_SLUG`
+5. Set the repository variable `SIGNPATH_ENABLED` to `true` and run the Pages
+   workflow.
+
+When signing is enabled, deployment fails unless the executable has a valid
+trusted Authenticode signature and an RFC 3161 timestamp. When it is not
+enabled, the workflow remains usable but emits a warning and publishes an
+unsigned connector. Never commit a certificate, private key, API token, or PFX
+file to the repository.
+
+Verify a signed local executable and create the distribution ZIP with:
+
+```powershell
+.\scripts\package-connector.ps1 -RequireSignature
+```
+
 In **Settings -> Pages**, select **GitHub Actions** as the deployment source,
 then run the workflow or push to `main`. No custom domain or repository variable
 is required. The workflow builds with the `/SuiteMind/` base path and generates

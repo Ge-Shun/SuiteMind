@@ -81,6 +81,12 @@ localhost proxy for supported providers, as described in
 When direct access is blocked, download the optional Windows connector from the
 installation page. Extract the ZIP and run `SuiteMindConnector.exe`.
 
+The current download may show **Unknown publisher** until the repository's
+SignPath open-source application is approved and signing is enabled. After that,
+Windows should show **SignPath Foundation** as the verified publisher. Do not
+continue if Windows reports that a signed file has an invalid or damaged
+signature.
+
 On first launch, the connector:
 
 - copies itself to `%LOCALAPPDATA%\SuiteMind\Connector\App` so it does not depend
