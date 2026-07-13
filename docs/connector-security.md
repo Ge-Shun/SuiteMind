@@ -29,7 +29,9 @@ responses to disk or application logs.
 
 ## Windows Integration
 
+- Copies the executable to the current user's local application data directory
+  on first launch.
 - Registers the `suitemind://` protocol for the current user.
-- Can register itself in the current user's Windows Run key when the user enables
-  **Start with Windows** from the tray menu.
+- Registers itself in the current user's Windows Run key by default. The user can
+  disable **Start with Windows** from the tray menu.
 - Does not require a Windows service or system-wide installation.

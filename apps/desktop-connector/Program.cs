@@ -9,6 +9,11 @@ internal static class Program
   [STAThread]
   private static void Main()
   {
+    if (!InstallationManager.EnsureInstalled())
+    {
+      return;
+    }
+
     using var mutex = new Mutex(true, MutexName, out var isFirstInstance);
 
     if (!isFirstInstance)

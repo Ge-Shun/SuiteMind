@@ -12,6 +12,7 @@ internal sealed class ConnectorApplicationContext : ApplicationContext
 
   internal ConnectorApplicationContext()
   {
+    StartupManager.EnsureDefaultEnabled();
     startupMenuItem = new ToolStripMenuItem("Start with Windows")
     {
       Checked = StartupManager.IsEnabled,

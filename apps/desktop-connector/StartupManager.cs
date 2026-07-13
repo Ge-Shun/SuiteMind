@@ -6,6 +6,18 @@ internal static class StartupManager
 {
   private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
   private const string ValueName = "SuiteMindConnector";
+  private const string SettingsKeyPath = @"Software\SuiteMind\Connector";
+  private const string AutoStartConfiguredValue = "AutoStartConfigured";
+
+  internal static void EnsureDefaultEnabled()
+  {
+    using var settings = Registry.CurrentUser.CreateSubKey(SettingsKeyPath);
+
+    if (settings.GetValue(AutoStartConfiguredValue) is null)
+    {
+      SetEnabled(true);
+    }
+  }
 
   internal static bool IsEnabled
   {
@@ -28,5 +40,8 @@ internal static class StartupManager
     {
       key.DeleteValue(ValueName, false);
     }
+
+    using var settings = Registry.CurrentUser.CreateSubKey(SettingsKeyPath);
+    settings.SetValue(AutoStartConfiguredValue, 1, RegistryValueKind.DWord);
   }
 }

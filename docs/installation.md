@@ -83,6 +83,8 @@ installation page. Extract the ZIP and run `SuiteMindConnector.exe`.
 
 On first launch, the connector:
 
+- copies itself to `%LOCALAPPDATA%\SuiteMind\Connector\App` so it does not depend
+  on the Downloads folder;
 - creates and trusts a certificate for `https://localhost:3001` in the current
   Windows user profile;
 - registers the `suitemind://` protocol so the Word task pane can start it;
@@ -90,6 +92,8 @@ On first launch, the connector:
 - accepts requests only from the SuiteMind production origin and local
   development origins;
 - does not persist API keys, document text, requests, or responses.
+- enables **Start with Windows** by default; the user can disable it from the
+  tray menu.
 
 Use the tray menu to enable **Start with Windows**, check status, or exit the
 connector. See [`connector-security.md`](connector-security.md) for the security
