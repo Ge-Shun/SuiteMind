@@ -81,11 +81,24 @@ localhost proxy for supported providers, as described in
 When direct access is blocked, download the optional Windows connector from the
 installation page. Extract the ZIP and run `SuiteMindConnector.exe`.
 
-The current download may show **Unknown publisher** until the repository's
-SignPath open-source application is approved and signing is enabled. After that,
-Windows should show **SignPath Foundation** as the verified publisher. Do not
-continue if Windows reports that a signed file has an invalid or damaged
-signature.
+The current connector is not code-signed. Windows SmartScreen may display
+**Windows protected your PC** and **Unknown publisher**. This warning does not
+prevent the connector from working. Before choosing **More info -> Run anyway**:
+
+1. Download only from `https://ge-shun.github.io/SuiteMind/` or the repository's
+   GitHub Releases page.
+2. Download the adjacent `.sha256` file and compare it with:
+
+   ```powershell
+   Get-FileHash .\SuiteMind-Connector-win-x64.zip -Algorithm SHA256
+   ```
+
+3. Stop if the hashes differ or Microsoft Defender reports malware, an invalid
+   signature, or a damaged file.
+
+A checksum confirms that the download matches the file published by this
+repository. It does not provide the publisher identity guarantee of a publicly
+trusted Authenticode certificate.
 
 On first launch, the connector:
 
@@ -104,3 +117,15 @@ On first launch, the connector:
 Use the tray menu to enable **Start with Windows**, check status, or exit the
 connector. See [`connector-security.md`](connector-security.md) for the security
 boundary.
+
+## GitHub Releases
+
+Versioned releases are published at:
+
+```text
+https://github.com/Ge-Shun/SuiteMind/releases
+```
+
+Each release includes the production manifest, a versioned Windows connector
+ZIP, its `.sha256` file, and `SHA256SUMS.txt`. Release notes state explicitly
+whether the connector has an Authenticode signature.

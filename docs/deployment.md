@@ -28,10 +28,9 @@ which points to localhost. Detailed user instructions live in
 
 ## Connector Code Signing
 
-The Pages workflow supports Authenticode signing through SignPath before the
-Windows connector ZIP is created. This is the recommended route for this public
-repository because SignPath offers a free program for approved open-source
-projects and keeps the signing key outside GitHub.
+The Pages and Release workflows support Authenticode signing through SignPath
+before the Windows connector ZIP is created. Signing is currently disabled, so
+published connector builds are unsigned and include SHA-256 checksum files.
 
 For an individual maintainer, the free open-source certificate displays
 **SignPath Foundation** as the Windows publisher. Displaying the maintainer's
@@ -40,9 +39,8 @@ signing certificate and a compatible cloud or hardware signing service.
 
 To enable SignPath signing:
 
-1. Apply for the open-source program at
-   `https://about.signpath.io/product/open-source` and connect this GitHub
-   repository as a trusted build system.
+1. Obtain an approved SignPath Foundation project or a regular paid SignPath
+   subscription, then connect this GitHub repository as a trusted build system.
 2. Create a SignPath project for `SuiteMind`, an artifact configuration whose
    root is a Windows PE file, and a release signing policy that uses SHA-256
    Authenticode signing with an RFC 3161 timestamp.
@@ -59,8 +57,8 @@ To enable SignPath signing:
 When signing is enabled, deployment fails unless the executable has a valid
 trusted Authenticode signature and an RFC 3161 timestamp. When it is not
 enabled, the workflow remains usable but emits a warning and publishes an
-unsigned connector. Never commit a certificate, private key, API token, or PFX
-file to the repository.
+unsigned connector with a SHA-256 checksum. Never commit a certificate, private
+key, API token, or PFX file to the repository.
 
 Verify a signed local executable and create the distribution ZIP with:
 
@@ -103,6 +101,39 @@ Validate it:
 ```powershell
 npx office-addin-manifest validate apps/word-addin/dist/manifest.xml
 ```
+
+## GitHub Releases
+
+`.github/workflows/release.yml` publishes a GitHub Release when a semantic
+version tag such as `v0.1.0` is pushed. The tag without its leading `v` must
+match the root `package.json` version. The workflow:
+
+1. Builds a self-contained Windows connector with matching file metadata.
+2. Uses SignPath when `SIGNPATH_ENABLED=true`, otherwise marks the release as
+   unsigned.
+3. Creates a versioned ZIP and SHA-256 checksum.
+4. Generates the production Office manifest.
+5. Verifies all assets and creates `SHA256SUMS.txt`.
+6. Publishes a GitHub Release with generated changes and an explicit signing
+   status notice.
+
+To publish a version, update and test the version on `main`, then create the tag:
+
+```powershell
+npm version 0.1.1 --no-git-tag-version
+npm run format:check
+npm run typecheck
+npm test
+npm run build
+git add package.json package-lock.json
+git commit -m "chore: prepare v0.1.1"
+git tag v0.1.1
+git push origin main
+git push origin v0.1.1
+```
+
+Do not move or reuse a published version tag. Correct a failed release in a new
+patch version after fixing the workflow or source.
 
 ## Provider Configuration
 

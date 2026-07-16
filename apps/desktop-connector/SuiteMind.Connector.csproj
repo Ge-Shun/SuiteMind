@@ -7,6 +7,13 @@
     <Nullable>enable</Nullable>
     <AssemblyName>SuiteMindConnector</AssemblyName>
     <RootNamespace>SuiteMind.Connector</RootNamespace>
+    <Version>0.1.0</Version>
+    <Product>SuiteMind Connector</Product>
+    <Description>Local provider connector for the SuiteMind Microsoft Word add-in</Description>
+    <Company>SuiteMind</Company>
+    <Authors>Shun Ge</Authors>
+    <RepositoryUrl>https://github.com/Ge-Shun/SuiteMind</RepositoryUrl>
+    <Copyright>Copyright (c) 2026 Shun Ge</Copyright>
     <ApplicationIcon>Assets\SuiteMind.ico</ApplicationIcon>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>

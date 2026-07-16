@@ -1,24 +1,20 @@
-name: Deploy Word Add-in to GitHub Pages
+name: Release SuiteMind
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    tags:
+      - "v*.*.*"
 
 permissions:
   actions: read
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: false
+  contents: write
 
 jobs:
   connector:
     runs-on: windows-latest
+    outputs:
+      signed: ${{ steps.signing.outputs.enabled }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -27,6 +23,21 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 8.0.x
+
+      - name: Validate release version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag -notmatch '^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+            throw "Release tag '$tag' must use the format v1.2.3."
+          }
+          $version = $tag.Substring(1)
+          $packageVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($version -ne $packageVersion) {
+            throw "Release tag version '$version' does not match package.json version '$packageVersion'."
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
 
       - name: Check connector signing configuration
         id: signing
@@ -53,20 +64,19 @@ jobs:
               throw "SignPath is enabled but these repository settings are missing: $($missing -join ', ')"
             }
           } else {
-            Write-Warning "SignPath is not enabled. This deployment will contain an unsigned connector."
+            Write-Warning "SignPath is not enabled. This release will contain an unsigned connector."
           }
           "enabled=$($enabled.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
 
       - name: Build Windows connector
         shell: pwsh
-        run: ./scripts/publish-connector.ps1 -SkipArchive
+        run: ./scripts/publish-connector.ps1 -Version "${{ steps.version.outputs.version }}" -SkipArchive
 
       - name: Upload unsigned connector for signing
         if: steps.signing.outputs.enabled == 'true'
         id: upload-unsigned-connector
         uses: actions/upload-artifact@v7
         with:
-          name: suitemind-connector-unsigned
           path: artifacts/connector/publish/SuiteMindConnector.exe
           archive: false
           if-no-files-found: error
@@ -99,103 +109,84 @@ jobs:
       - name: Package signed connector
         if: steps.signing.outputs.enabled == 'true'
         shell: pwsh
-        run: ./scripts/package-connector.ps1 -RequireSignature
+        run: ./scripts/package-connector.ps1 -ArchivePath "artifacts/release/SuiteMind-Connector-${{ github.ref_name }}-win-x64.zip" -RequireSignature
 
       - name: Package unsigned connector
         if: steps.signing.outputs.enabled != 'true'
         shell: pwsh
-        run: ./scripts/package-connector.ps1
+        run: ./scripts/package-connector.ps1 -ArchivePath "artifacts/release/SuiteMind-Connector-${{ github.ref_name }}-win-x64.zip"
 
       - name: Generate connector checksum
         shell: pwsh
-        run: ./scripts/write-sha256.ps1 -Path artifacts/connector/SuiteMind-Connector-win-x64.zip
+        run: ./scripts/write-sha256.ps1 -Path "artifacts/release/SuiteMind-Connector-${{ github.ref_name }}-win-x64.zip"
 
-      - name: Upload connector package
+      - name: Upload release assets
         uses: actions/upload-artifact@v4
         with:
-          name: suitemind-connector
-          path: |
-            artifacts/connector/SuiteMind-Connector-win-x64.zip
-            artifacts/connector/SuiteMind-Connector-win-x64.zip.sha256
+          name: release-assets
+          path: artifacts/release/*
           if-no-files-found: error
 
-  build:
+  release:
     needs: connector
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # GitHub Actions runners are moving off Node 20; use Node 24 for npm scripts.
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Test Word add-in
-        run: npm test --workspace @suitemind/word-addin
-
-      - name: Typecheck Word add-in
-        run: npm run typecheck --workspace @suitemind/word-addin
-
-      - name: Run Word add-in browser E2E
-        run: npm run e2e:word
-
-      - name: Build Word add-in for GitHub Project Pages
-        env:
-          VITE_ADDIN_BASE_PATH: /${{ github.event.repository.name }}/
-        run: npm run build --workspace @suitemind/word-addin
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          name: release-assets
+          path: release-assets
 
       - name: Generate production manifest
         env:
           SUITEMIND_ADDIN_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
           SUITEMIND_ADDIN_ORIGIN: https://${{ github.repository_owner }}.github.io
           SUITEMIND_SUPPORT_URL: https://github.com/${{ github.repository }}
-        run: npm run generate:production-manifest
+          SUITEMIND_MANIFEST_OUTPUT: release-assets/SuiteMind-manifest.xml
+        run: node scripts/generate-production-manifest.mjs
 
-      - name: Verify installation artifacts
+      - name: Verify and index release assets
+        working-directory: release-assets
         run: |
-          test -f apps/word-addin/dist/install.html
-          test -f apps/word-addin/dist/manifest.xml
+          sha256sum -c SuiteMind-Connector-${{ github.ref_name }}-win-x64.zip.sha256
+          sha256sum SuiteMind-Connector-${{ github.ref_name }}-win-x64.zip SuiteMind-manifest.xml > SHA256SUMS.txt
 
-      - name: Download Windows connector
-        uses: actions/download-artifact@v4
-        with:
-          name: suitemind-connector
-          path: apps/word-addin/dist/downloads
-
-      - name: Verify connector artifact
-        working-directory: apps/word-addin/dist/downloads
+      - name: Create release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONNECTOR_SIGNED: ${{ needs.connector.outputs.signed }}
         run: |
-          test -f SuiteMind-Connector-win-x64.zip
-          test -f SuiteMind-Connector-win-x64.zip.sha256
-          sha256sum -c SuiteMind-Connector-win-x64.zip.sha256
+          {
+            echo "## Installation"
+            echo
+            echo "- Download \`SuiteMind-manifest.xml\` to install the Word add-in."
+            echo "- Download \`SuiteMind-Connector-${GITHUB_REF_NAME}-win-x64.zip\` only when Word cannot connect directly to the model provider."
+            echo "- Verify downloaded files against \`SHA256SUMS.txt\`."
+            echo
+            if [ "$CONNECTOR_SIGNED" = "true" ]; then
+              echo "> The Windows connector in this release has a verified Authenticode signature."
+            else
+              echo "> [!WARNING]"
+              echo "> The Windows connector in this release is not code-signed. Windows SmartScreen may show Unknown publisher. Verify the SHA-256 checksum and download only from this GitHub repository."
+            fi
+            echo
+          } > release-notes.md
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name="${GITHUB_REF_NAME}" --jq '.body' >> release-notes.md
 
-      - name: Validate production manifest
-        run: npx office-addin-manifest validate apps/word-addin/dist/manifest.xml
-
-      # enablement:true lets the first run create/enable the Pages site automatically.
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v6
-        with:
-          enablement: true
-
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: apps/word-addin/dist
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" release-assets/* \
+            --verify-tag \
+            --title "SuiteMind ${GITHUB_REF_NAME}" \
+            --notes-file release-notes.md

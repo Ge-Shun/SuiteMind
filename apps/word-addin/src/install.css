@@ -206,41 +206,174 @@ code {
   margin-top: 10px;
 }
 
-.connector-download {
+.connector-section {
+  margin-top: 20px;
+  border-top: 1px solid #aeb7c2;
+  border-bottom: 1px solid #aeb7c2;
+  background: #ffffff;
+}
+
+.connector-heading {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 24px;
-  margin-top: 20px;
-  padding: 20px;
-  border: 1px solid #cbd7e8;
-  background: #eef4fc;
+  padding: 24px 20px;
 }
 
-.connector-download .eyebrow {
+.connector-heading .eyebrow {
   margin-bottom: 5px;
 }
 
-.connector-download h2 {
+.connector-heading h2 {
   margin: 0 0 7px;
   font-size: 16px;
 }
 
-.connector-download p:last-child {
+.connector-heading p:last-child,
+.unsigned-notice p:last-child,
+.verification-grid p {
   margin: 0;
   color: #59626c;
   font-size: 14px;
   line-height: 1.7;
 }
 
+.connector-actions {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+}
+
 .secondary-download {
   min-width: 174px;
   color: #185abd;
-  background: #ffffff;
+  background: #eef4fc;
 }
 
 .secondary-download:hover {
   color: #ffffff;
+}
+
+.release-link,
+.checksum-link {
+  color: #185abd;
+  font-size: 12px;
+  font-weight: 650;
+  text-underline-offset: 3px;
+}
+
+.unsigned-notice {
+  padding: 18px 20px;
+  border-top: 1px solid #e2d2a8;
+  border-bottom: 1px solid #e2d2a8;
+  background: #fff9e8;
+}
+
+.security-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 6px;
+  color: #765000;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.security-status span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #b77900;
+}
+
+.unsigned-notice h3,
+.verification-grid h3 {
+  margin: 0 0 6px;
+  color: #292e34;
+  font-size: 14px;
+}
+
+.connector-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  padding: 0 20px;
+  list-style: none;
+  counter-reset: connector-step;
+}
+
+.connector-steps li {
+  min-width: 0;
+  padding: 20px 16px 20px 0;
+  counter-increment: connector-step;
+}
+
+.connector-steps li + li {
+  padding-left: 16px;
+  border-left: 1px solid #e0e3e8;
+}
+
+.connector-steps strong,
+.connector-steps span {
+  display: block;
+}
+
+.connector-steps strong {
+  margin-bottom: 6px;
+  color: #292e34;
+  font-size: 13px;
+}
+
+.connector-steps strong::before {
+  display: block;
+  margin-bottom: 8px;
+  color: #185abd;
+  content: counter(connector-step, decimal-leading-zero);
+  font-family: Consolas, "SFMono-Regular", monospace;
+  font-size: 11px;
+}
+
+.connector-steps span {
+  color: #646d77;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.verification-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  border-top: 1px solid #e0e3e8;
+}
+
+.verification-grid > div {
+  min-width: 0;
+  padding: 20px;
+}
+
+.verification-grid > div + div {
+  border-left: 1px solid #e0e3e8;
+}
+
+.verification-grid pre {
+  max-width: 100%;
+  margin: 10px 0;
+}
+
+.verification-grid pre code {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  border-color: #ccd3dc;
+  background: #f5f6f8;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.stop-condition {
+  background: #f8f9fa;
 }
 
 .english-instructions {
@@ -261,6 +394,41 @@ code {
   margin-top: 12px;
 }
 
+@media (max-width: 680px) {
+  .connector-heading,
+  .verification-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .connector-actions {
+    justify-items: start;
+  }
+
+  .connector-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .connector-steps li {
+    padding: 16px 0;
+  }
+
+  .connector-steps li + li {
+    padding-left: 0;
+    border-top: 1px solid #e0e3e8;
+    border-left: 0;
+  }
+
+  .connector-steps strong::before {
+    display: inline;
+    margin: 0 8px 0 0;
+  }
+
+  .verification-grid > div + div {
+    border-top: 1px solid #e0e3e8;
+    border-left: 0;
+  }
+}
+
 @media (max-width: 420px) {
   .install-header {
     padding-right: 14px;
@@ -275,7 +443,7 @@ code {
     width: 100%;
   }
 
-  .connector-download {
-    grid-template-columns: 1fr;
+  .connector-actions {
+    justify-items: stretch;
   }
 }

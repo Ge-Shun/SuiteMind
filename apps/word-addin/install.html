@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#ffffff" />
     <meta name="description" content="下载并安装 SuiteMind Microsoft Word 加载项。" />
     <title>安装 SuiteMind Word 加载项</title>
+    <link rel="icon" href="/assets/icon-32.png" />
     <link rel="stylesheet" href="/src/install.css" />
   </head>
   <body>
@@ -98,23 +99,85 @@
         </p>
       </section>
 
-      <section class="connector-download" aria-labelledby="connector-title">
-        <div>
-          <p class="eyebrow">Windows 可选组件</p>
-          <h2 id="connector-title">安装 SuiteMind 桌面连接器</h2>
+      <section class="connector-section" aria-labelledby="connector-title">
+        <header class="connector-heading">
+          <div>
+            <p class="eyebrow">Windows 可选组件</p>
+            <h2 id="connector-title">安装 SuiteMind 桌面连接器</h2>
+            <p>
+              仅当模型服务商禁止 Word 直接连接时才需要。连接器在本机转发请求，不保存 API
+              Key、文档内容或模型回复。
+            </p>
+          </div>
+          <div class="connector-actions">
+            <a
+              class="download-button secondary-download"
+              download
+              href="./downloads/SuiteMind-Connector-win-x64.zip"
+            >
+              下载 Windows 连接器
+            </a>
+            <a
+              class="release-link"
+              href="https://github.com/Ge-Shun/SuiteMind/releases"
+            >
+              查看 GitHub Releases
+            </a>
+          </div>
+        </header>
+
+        <div class="unsigned-notice" role="note" aria-labelledby="unsigned-title">
+          <p class="security-status">
+            <span aria-hidden="true"></span>当前状态 · 未签名
+          </p>
+          <h3 id="unsigned-title">首次运行可能出现“未知发布者”</h3>
           <p>
-            如果模型服务商禁止 Word 直接连接，请下载连接器。解压后运行
-            <code>SuiteMindConnector.exe</code>。首次运行会安装到当前用户目录、配置本机
-            HTTPS，并设置为登录 Windows 后自动启动。
+            SuiteMind 目前没有公开可信的代码签名证书。Windows SmartScreen 显示“Windows
+            已保护你的电脑”属于预期提示，但下载来源和 SHA-256 校验值必须匹配本页。
           </p>
         </div>
-        <a
-          class="download-button secondary-download"
-          download
-          href="./downloads/SuiteMind-Connector-win-x64.zip"
-        >
-          下载 Windows 连接器
-        </a>
+
+        <ol class="connector-steps" aria-label="连接器安全安装步骤">
+          <li>
+            <strong>从官方地址下载</strong>
+            <span>只使用本页或 SuiteMind GitHub Releases 提供的 ZIP 文件。</span>
+          </li>
+          <li>
+            <strong>核对 SHA-256</strong>
+            <span>运行下方命令，并与校验文件中的 64 位哈希值比较。</span>
+          </li>
+          <li>
+            <strong>解压并运行</strong>
+            <span>解压 ZIP，然后双击 <code>SuiteMindConnector.exe</code>。</span>
+          </li>
+          <li>
+            <strong>处理 SmartScreen</strong>
+            <span>确认来源和哈希一致后，选择“更多信息”→“仍要运行”。</span>
+          </li>
+        </ol>
+
+        <div class="verification-grid">
+          <div>
+            <h3>校验下载文件</h3>
+            <p>在下载目录打开 PowerShell，运行：</p>
+            <pre><code>Get-FileHash .\SuiteMind-Connector-win-x64.zip -Algorithm SHA256</code></pre>
+            <a
+              class="checksum-link"
+              download
+              href="./downloads/SuiteMind-Connector-win-x64.zip.sha256"
+            >
+              下载 SHA-256 校验文件
+            </a>
+          </div>
+          <div class="stop-condition">
+            <h3>遇到这些情况不要继续</h3>
+            <p>
+              下载域名不是 <code>ge-shun.github.io</code> 或
+              <code>github.com/Ge-Shun/SuiteMind</code>、哈希值不一致，或者 Windows
+              Defender 明确报告恶意软件、签名无效或文件损坏。
+            </p>
+          </div>
+        </div>
       </section>
 
       <details class="english-instructions">
@@ -124,7 +187,9 @@
           Add-ins → More Add-ins → My Add-ins → Upload My Add-in, then select the
           downloaded XML file. Open SuiteMind from My Add-ins and configure your model
           provider in the task pane. If direct provider access is blocked, download and
-          run the optional Windows connector.
+          run the optional Windows connector. The connector is currently unsigned, so
+          verify its SHA-256 checksum before choosing More info → Run anyway in Windows
+          SmartScreen.
         </p>
       </details>
     </main>

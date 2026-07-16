@@ -104,6 +104,18 @@ https://ge-shun.github.io/SuiteMind/install.html
 See [docs/installation.md](docs/installation.md) for installation, removal, and
 troubleshooting instructions.
 
+### Releases And Download Verification
+
+Versioned manifests and Windows connector packages are published on the
+[GitHub Releases page](https://github.com/Ge-Shun/SuiteMind/releases). The
+connector is currently unsigned, so Windows may display **Unknown publisher**.
+Download it only from this repository or the production installation page and
+verify its SHA-256 checksum before running it.
+
+Each release includes a versioned ZIP, a `.sha256` file, and
+`SHA256SUMS.txt`. See [docs/installation.md](docs/installation.md#windows-connector)
+for the exact verification and SmartScreen steps.
+
 ### Local Development
 
 Requirements: Node.js 22.12 or newer and npm 10 or newer.

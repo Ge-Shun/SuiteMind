@@ -1,5 +1,6 @@
 param(
   [string]$OutputDirectory = "artifacts/connector",
+  [string]$Version,
   [switch]$SkipArchive
 )
 
@@ -10,6 +11,15 @@ $dotnet = if (Test-Path $localDotnet) { $localDotnet } else { "dotnet" }
 $project = Join-Path $repositoryRoot "apps/desktop-connector/SuiteMind.Connector.csproj"
 $publishDirectory = Join-Path $repositoryRoot "$OutputDirectory/publish"
 
+if ([string]::IsNullOrWhiteSpace($Version)) {
+  $package = Get-Content -LiteralPath (Join-Path $repositoryRoot "package.json") -Raw | ConvertFrom-Json
+  $Version = $package.version
+}
+
+if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+  throw "Connector version '$Version' is not a valid semantic version."
+}
+
 Remove-Item -LiteralPath $publishDirectory -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $publishDirectory -Force | Out-Null
 
@@ -17,6 +27,7 @@ New-Item -ItemType Directory -Path $publishDirectory -Force | Out-Null
   --configuration Release `
   --runtime win-x64 `
   --self-contained true `
+  -p:Version=$Version `
   --output $publishDirectory
 
 if ($LASTEXITCODE -ne 0) {
