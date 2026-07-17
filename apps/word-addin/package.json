@@ -37,7 +37,7 @@
     "office-addin-debugging": "^6.1.2",
     "office-addin-dev-certs": "^2.0.10",
     "office-addin-manifest": "^2.1.6",
-    "vite": "^8.1.4",
+    "vite": "^8.1.5",
     "vitest": "^4.1.10"
   }
 }
